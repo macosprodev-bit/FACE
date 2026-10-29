@@ -31,7 +31,13 @@
 - [x] Não enviar a mídia, ativar a câmera, autenticar ou usar o arquivo para substituir a verificação de presença/identidade.
 - [x] Validar tipo, tamanho e decodificação; permitir remover a seleção e liberar URLs temporárias ao limpar ou fechar o protótipo.
 - [x] Ao importar mídia válida, mostrar tipo, tamanho, dimensões, decodificação e status “válida para visualização”; esclarecer que isso não valida identidade, rosto ou prova de vida.
+- [x] Após importar uma imagem, exibir campos editáveis para nome anotado, IP, CPF, latitude, longitude e URL de mapa; tratá-los como anotações locais não verificadas, mantê-los somente em memória, não modificar nem enviar o arquivo e removê-los ao limpar a imagem ou recarregar a página.
 
 ## 7. Alternativa quando a câmera não funcionar
 - [x] Oferecer um caminho separado que oriente a tentar outro dispositivo/navegador ou um método sem câmera somente se o serviço oficial o disponibilizar.
 - [x] Se não houver método oficial alternativo, orientar a pessoa a contatar o suporte do serviço; não tratar mídia importada como prova de presença ou substituto de câmera.
+
+## 8. Envio de payload fictício para endpoint de teste
+- [x] Permitir editar o endpoint HTTPS e todos os campos enviados; só enviar após ação explícita e confirmação de que o endpoint está sob controle da pessoa e que os dados são fictícios.
+- [x] Enviar somente um JSON com anotações editáveis de IP, CPF, latitude, longitude, URL de mapa, componente/versão/origem/status/motivo/número de documento simulados e uma imagem sintética sem rosto; nunca enviar a imagem importada.
+- [x] Manter fixos os sinalizadores de segurança (“teste”, “simulado”, “não verificado” e “imagem sintética”); não criar nem validar assinatura criptográfica, não incluir cookies/credenciais e exibir resultado ou erro de conexão/CORS sem revelar resposta bruta do endpoint.

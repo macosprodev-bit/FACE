@@ -12,10 +12,12 @@ const DEMO_HISTORY = [
   {id:'demo-2',service:'Conta Horizonte',domain:'login.horizonte.example',time:'28 out 2026 · 18:23',method:'Chave de acesso (passkey)'},
   {id:'demo-3',service:'Serviço Alameda',domain:'secure.alameda.example',time:'26 out 2026 · 12:06',method:'Alternativa autorizada pelo serviço'}
 ];
+const DEMO_SIGNATURE_DEFAULTS = Object.freeze({component:'Componente fictício',version:'0.0.0-demo',availableAt:'Ambiente de teste',processStatus:'Processo de assinatura simulado',reason:'Finalização automática após a última assinatura habilitada.',documentNumber:'3f8becaf-0f01-42a5-a263-746a0015fd38'});
 const state = {
   page:'home', permission:'unknown', issue:'none', checks:{frame:false,light:false,privacy:false},
   altAuthorized:false, fileName:'', fileUrl:'', validating:false, uploadSequence:0,
-  mediaFileName:'', mediaFileUrl:'', mediaPendingUrl:'', mediaType:'', mediaInfo:null, mediaError:'', mediaValidating:false, mediaSequence:0,
+  mediaFileName:'', mediaFileUrl:'', mediaPendingUrl:'', mediaType:'', mediaInfo:null, mediaAnnotations:null, mediaError:'', mediaValidating:false, mediaSequence:0,
+  signatureAnnotations:{...DEMO_SIGNATURE_DEFAULTS}, testEndpoint:'', testEndpointConfirmed:false, testSending:false, testSendStatus:'',
   authHistory:DEMO_HISTORY.map(entry=>({...entry})), historyQuery:'', clearHistoryConfirm:false, toastTimer:null
 };
 const screen = document.getElementById('screenRoot');
@@ -64,7 +66,7 @@ const views={
         <div class="button-row">${button('Preparar câmera <span aria-hidden="true">→</span>','permission','btn btn-primary')}<button class="btn btn-ghost" data-page="verify">Como funciona</button></div>
       </section>
       <aside class="hero-aside">
-        <div><div class="aside-icon" aria-hidden="true">⌁</div><h3>Você mantém o controle</h3><p>Este protótipo não acessa sua câmera, não envia imagens e não guarda dados.</p></div>
+        <div><div class="aside-icon" aria-hidden="true">⌁</div><h3>Você mantém o controle</h3><p>Não acessa a câmera nem guarda dados. A imagem importada fica local; o envio opcional usa apenas um PNG sintético.</p></div>
         <button class="mini-link" data-page="build">Veja como seria construído <span aria-hidden="true">→</span></button>
       </aside>
     </div>
@@ -84,7 +86,7 @@ const views={
           <div class="step-row"><span class="step-num">2</span><div><strong>Revise a permissão</strong><p>O navegador pede acesso à câmera somente no contexto do site oficial e após sua ação.</p></div></div>
           <div class="step-row"><span class="step-num">3</span><div><strong>Conclua no serviço de origem</strong><p>Presença e identidade são verificadas pelo provedor — nunca por uma imagem estática neste protótipo.</p></div></div>
         </div>
-        <div class="callout info"><span class="callout-icon" aria-hidden="true">i</span><div><strong>Este fluxo é demonstrativo.</strong> Os botões simulam estados; nenhuma câmera é ligada e nenhum dado sai do navegador.</div></div>
+        <div class="callout info"><span class="callout-icon">i</span><div><strong>Este fluxo é demonstrativo.</strong> Nenhuma câmera é ligada nem há envio automático; o único envio possível é manual, após confirmação, com JSON fictício e PNG sintético.</div></div>
         ${button('Começar preparação <span aria-hidden="true">→</span>','permission')}
       </section>
       <aside>
@@ -133,19 +135,20 @@ const views={
         <div class="callout info"><span class="callout-icon">i</span><div><strong>Você decide quando continuar.</strong> O serviço oficial apresentará suas instruções e controles de câmera.</div></div>
         <div class="button-row">${button('Iniciar demonstração oficial <span aria-hidden="true">→</span>','live','btn btn-primary',!Object.values(state.checks).every(Boolean))}<button class="btn btn-outline" data-page="help">Preciso de ajuda</button></div>
       </section>
-      <aside><section class="panel"><span class="state-chip chip-green">✓ Preparação</span><h2 style="margin-top:14px">O que esta tela não faz</h2><p class="panel-lead">Não ativa sensores, não grava vídeo, não lê seu rosto e não envia imagem. É só uma demonstração clicável da experiência.</p><div class="divider"></div><button class="text-button" data-page="build">Ver requisitos técnicos →</button></section></aside>
+      <aside><section class="panel"><span class="state-chip chip-green">✓ Preparação</span><h2 style="margin-top:14px">O que esta tela não faz</h2><p class="panel-lead">Nesta etapa, não ativa sensores, não grava vídeo, não lê seu rosto nem envia a imagem escolhida. Um teste opcional separado envia somente um PNG sintético após confirmação.</p><div class="divider"></div><button class="text-button" data-page="build">Ver requisitos técnicos →</button></section></aside>
     </div>`;},
   live(){return `
     <div class="content-layout">
       <section class="panel">
         <div class="panel-heading"><div><h2>Você está no controle</h2><p>A verificação real deve acontecer no site ou app oficial do provedor.</p></div><span class="state-chip chip-blue">Demonstração</span></div>
         <div class="sim-preview"><div class="preview-content"><div class="face-outline" aria-hidden="true"></div><strong>Área visual ilustrativa</strong><small>Nenhuma câmera está ativa neste protótipo</small></div></div>
-        <section class="media-local-tools" aria-labelledby="mediaPreviewTitle"><div class="media-local-heading"><div><h3 id="mediaPreviewTitle">Pré-visualização local</h3><p>Selecione uma imagem ou vídeo para visualizar neste navegador.</p></div><span class="state-chip chip-blue">Não enviado</span></div>
-          <div class="button-row"><label class="media-picker-button"><span>Importar imagem ou vídeo</span><input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"></label>${state.mediaFileUrl||state.mediaValidating?button('Remover mídia','media-clear','btn btn-outline btn-small'):''}</div>
+        <section class="media-local-tools" aria-labelledby="mediaPreviewTitle"><div class="media-local-heading"><div><h3 id="mediaPreviewTitle">Pré-visualização local</h3><p>Selecione uma imagem ou vídeo para visualizar neste navegador.</p></div><span class="state-chip chip-blue">Arquivo local</span></div>
+          <div class="button-row"><div class="media-picker-group"><label class="media-picker-button" for="mediaInput">Importar imagem ou vídeo</label><input id="mediaInput" class="media-file-input" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" aria-label="Selecionar arquivo para pré-visualização local" ${state.testSending?'disabled':''}></div>${state.mediaFileUrl||state.mediaValidating?button('Remover mídia','media-clear','btn btn-outline btn-small',state.testSending):''}</div>
           <p class="media-status ${state.mediaError?'media-error':''}" id="mediaStatus" role="status" aria-live="polite">${state.mediaValidating?'Validando o arquivo localmente…':state.mediaError?escapeHTML(state.mediaError):state.mediaFileName?`Pronto para visualizar: ${escapeHTML(state.mediaFileName)}`:'JPG, PNG, WebP, MP4 ou WebM · até 25 MB.'}</p>
           ${state.mediaFileUrl&&state.mediaType==='video'?`<video class="media-preview" src="${state.mediaFileUrl}" controls playsinline preload="metadata" aria-label="Pré-visualização local do vídeo"></video>`:state.mediaFileUrl?`<img class="media-preview" src="${state.mediaFileUrl}" alt="Pré-visualização local da imagem">`:''}
           ${state.mediaInfo?`<div class="media-validation-card"><div class="media-validation-heading"><span class="validation-mark" aria-hidden="true">✓</span><div><strong>Válida para visualização local</strong><small>Arquivo decodificado neste navegador.</small></div></div><dl class="media-meta-grid"><div><dt>Formato</dt><dd>${escapeHTML(state.mediaInfo.type)}</dd></div><div><dt>Tamanho</dt><dd>${escapeHTML(state.mediaInfo.size)}</dd></div><div><dt>Dimensões</dt><dd>${state.mediaInfo.width} × ${state.mediaInfo.height} px</dd></div>${state.mediaType==='video'?`<div><dt>Duração</dt><dd>${state.mediaInfo.duration===null?'Não disponível':`${state.mediaInfo.duration.toFixed(1)} s`}</dd></div>`:''}<div><dt>Decodificação</dt><dd>OK</dd></div></dl><p class="media-validation-note">Validação técnica local; não verifica rosto, identidade, presença, prova de vida ou aceitação do serviço.</p></div>`:''}
-          <div class="callout warning media-warning"><span class="callout-icon">!</span><div>Esta mídia é apenas para visualização. Não ativa a câmera, não é enviada ao serviço e não pode substituir a verificação de presença ou identidade.</div></div>
+          ${mediaAnnotationsPanel()}
+          <div class="callout warning media-warning"><span class="callout-icon">!</span><div>A imagem/vídeo importado permanece neste navegador e nunca é incluído no envio de teste. Ao enviar, o protótipo gera outro PNG sintético sem rosto e envia somente esse PNG e o JSON fictício ao endpoint HTTPS confirmado.</div></div>
         </section>
         <p class="security-footnote">Em um produto real, o Verifica não substitui o fluxo do provedor nem interfere no vídeo usado para verificação de presença.</p>
         <div class="button-row" style="margin-top:15px">${button('Simular conclusão bem-sucedida','success','btn btn-primary')}${button('Simular falha','failure','btn btn-outline')}</div>
@@ -236,11 +239,92 @@ function formatBytes(bytes){
   while(value>=1024&&unit<units.length-1){value/=1024;unit+=1;}
   return `${value.toFixed(value>=10?0:1)} ${units[unit]}`;
 }
+function mediaAnnotationsPanel(){
+  if(!state.mediaAnnotations)return '';
+  const annotation=state.mediaAnnotations;
+  const signature=state.signatureAnnotations;
+  return `<section class="media-annotations-card" aria-labelledby="mediaAnnotationsTitle">
+    <div class="media-annotations-heading"><div><h3 id="mediaAnnotationsTitle">Anotações de teste</h3><p>Todos os campos abaixo são editáveis e não verificados.</p></div><span class="state-chip chip-gold">Fictícias</span></div>
+    <div class="annotation-grid">
+      <label>Nome anotado<input data-annotation="fileName" type="text" maxlength="120" value="${escapeHTML(annotation.fileName)}" autocomplete="off"></label>
+      <label>IP informado<input data-annotation="ip" type="text" maxlength="45" inputmode="decimal" placeholder="Exemplo fictício" value="${escapeHTML(annotation.ip)}" autocomplete="off"></label>
+      <label>CPF informado<input data-annotation="cpf" type="text" maxlength="14" inputmode="numeric" placeholder="Valor fictício" value="${escapeHTML(annotation.cpf)}" autocomplete="off"></label>
+      <label>Latitude<input data-annotation="latitude" type="text" maxlength="24" inputmode="decimal" placeholder="Coordenada fictícia" value="${escapeHTML(annotation.latitude)}" autocomplete="off"></label>
+      <label>Longitude<input data-annotation="longitude" type="text" maxlength="24" inputmode="decimal" placeholder="Coordenada fictícia" value="${escapeHTML(annotation.longitude)}" autocomplete="off"></label>
+      <label>URL para mapa (fictícia)<input data-annotation="mapUrl" type="url" maxlength="500" placeholder="https://maps.example/?q=0,0" value="${escapeHTML(annotation.mapUrl)}" autocomplete="off"></label>
+    </div>
+    <p class="media-annotations-note">Esses valores não são lidos do dispositivo, não alteram a imagem e não comprovam IP, CPF, localização, identidade ou presença.</p>
+  </section>
+  <section class="media-annotations-card signature-test-card" aria-labelledby="signatureTestTitle">
+    <div class="media-annotations-heading"><div><h3 id="signatureTestTitle">Registro de assinatura de teste</h3><p>Campos fictícios; nenhuma assinatura real é criada ou validada.</p></div><span class="state-chip chip-gold">SIMULADO</span></div>
+    <div class="annotation-grid">
+      <label>Componente de assinatura<input data-signature="component" type="text" maxlength="120" value="${escapeHTML(signature.component)}" autocomplete="off"></label>
+      <label>Versão<input data-signature="version" type="text" maxlength="80" value="${escapeHTML(signature.version)}" autocomplete="off"></label>
+      <label>Disponibilizado em<input data-signature="availableAt" type="text" maxlength="120" value="${escapeHTML(signature.availableAt)}" autocomplete="off"></label>
+      <label>Status declarado (simulado)<input data-signature="processStatus" type="text" maxlength="160" value="${escapeHTML(signature.processStatus)}" autocomplete="off"></label>
+      <label>Motivo informado<input data-signature="reason" type="text" maxlength="240" value="${escapeHTML(signature.reason)}" autocomplete="off"></label>
+      <label>Número do documento (teste)<input data-signature="documentNumber" type="text" maxlength="100" value="${escapeHTML(signature.documentNumber)}" autocomplete="off"></label>
+    </div>
+    <p class="media-annotations-note">O marcador “SIMULADO” é fixo. Este registro não é uma assinatura eletrônica, certificado ou comprovante válido.</p>
+  </section>
+  <section class="test-send-card" aria-labelledby="testSendTitle">
+    <div class="media-annotations-heading"><div><h3 id="testSendTitle">Enviar pacote de teste</h3><p>Destino editável; envio manual por HTTPS e CORS.</p></div><span class="state-chip chip-blue">JSON + PNG sintético</span></div>
+    <div class="synthetic-image-demo"><img id="syntheticTestPreview" alt="PNG sintético de teste, sem rosto ou pessoa real"><p>Imagem que poderá ser enviada: gerada no navegador, sem pessoa real.</p></div>
+    <label class="test-endpoint-label">Endpoint HTTPS sob seu controle<input id="testEndpoint" type="url" maxlength="500" placeholder="https://seu-endpoint.example/api/teste" value="${escapeHTML(state.testEndpoint)}" autocomplete="off"></label>
+    <label class="test-confirm-label"><input id="confirmTestEndpoint" type="checkbox" ${state.testEndpointConfirmed?'checked':''} ${state.testSending?'disabled':''}><span>Confirmo que controlo o endpoint e que preenchi somente dados fictícios. Sei que a imagem importada fica local e que será enviado um PNG sintético sem rosto.</span></label>
+    <div class="button-row">${button(state.testSending?'Enviando…':'Enviar teste','test-send','btn btn-primary',!state.testEndpoint.trim()||!state.testEndpointConfirmed||state.testSending)}</div>
+    <p class="test-send-status" id="testSendStatus" role="status" aria-live="polite">${escapeHTML(state.testSendStatus||'Nenhum envio será feito sem o clique neste botão. O endpoint precisa aceitar POST JSON via CORS.')}</p>
+  </section>`;
+}
+function createSyntheticTestImageDataUrl(){
+  const canvas=document.createElement('canvas');canvas.width=320;canvas.height=200;
+  const context=canvas.getContext('2d');if(!context)throw new Error('Canvas indisponível para gerar a imagem sintética.');
+  context.fillStyle='#edf4f8';context.fillRect(0,0,320,200);
+  context.fillStyle='#123d5a';context.fillRect(18,18,284,164);
+  context.fillStyle='#f1bd45';context.beginPath();context.arc(73,82,30,0,Math.PI*2);context.fill();
+  context.fillStyle='#d8eaf1';context.fillRect(124,48,142,18);context.fillRect(124,80,112,12);context.fillRect(124,105,132,12);
+  context.fillStyle='#ffffff';context.font='bold 13px sans-serif';context.fillText('TESTE SINTÉTICO',66,151);
+  context.font='10px sans-serif';context.fillText('SEM PESSOA REAL',100,168);
+  return canvas.toDataURL('image/png');
+}
+function validateTestEndpoint(value){
+  let endpoint;
+  try{endpoint=new URL(String(value||'').trim());}catch{return {error:'Informe uma URL HTTPS válida do seu endpoint de teste.'};}
+  if(endpoint.protocol!=='https:')return {error:'Por segurança, o endpoint precisa usar HTTPS.'};
+  if(endpoint.username||endpoint.password)return {error:'Não coloque usuário ou senha dentro do URL do endpoint.'};
+  if(endpoint.search||endpoint.hash)return {error:'Remova parâmetros e fragmentos do URL; não coloque tokens ou segredos no endereço.'};
+  const host=endpoint.hostname.toLowerCase();
+  if(host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host==='example.com'||host==='example.org'||host==='example.net'||/\.(example|test|invalid)$/.test(host))return {error:'Esse é um domínio local ou reservado para exemplo. Substitua pelo endpoint HTTPS real sob seu controle.'};
+  return {endpoint};
+}
+async function sendTestPayload(){
+  if(!state.mediaAnnotations||!state.testEndpointConfirmed||state.testSending)return;
+  const validation=validateTestEndpoint(state.testEndpoint);
+  if(validation.error){state.testSendStatus=validation.error;render();return;}
+  let syntheticImage;
+  try{syntheticImage=createSyntheticTestImageDataUrl();}
+  catch{state.testSendStatus='Não foi possível gerar a imagem sintética neste navegador.';render();return;}
+  const payload={
+    test_only:true,
+    imported_image_included:false,
+    annotations:{unverified:true,verification_status:'not_verified',...state.mediaAnnotations},
+    signature:{...state.signatureAnnotations,simulated:true,cryptographic_signature_created:false},
+    synthetic_image:{file_name:'verifica-imagem-sintetica.png',mime_type:'image/png',synthetic:true,contains_person:false,data_url:syntheticImage}
+  };
+  state.testSending=true;state.testSendStatus='Enviando apenas JSON de teste e PNG sintético…';render();
+  try{
+    const response=await fetch(validation.endpoint.href,{method:'POST',mode:'cors',credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+    state.testSendStatus=response.ok?`Teste recebido pelo endpoint (HTTP ${response.status}). Consulte o seu servidor para ver o payload.`:`O endpoint respondeu HTTP ${response.status}. Consulte a configuração do seu endpoint.`;
+  }catch{
+    state.testSendStatus='Não foi possível confirmar a conexão. Confira a URL HTTPS, o certificado e a configuração CORS do endpoint; a resposta bruta não é exibida.';
+  }finally{state.testSending=false;render();}
+}
 function bindScreenControls(){
   const clearMediaSelection=()=>{
     state.mediaSequence+=1;
     [state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url));
-    state.mediaFileName='';state.mediaFileUrl='';state.mediaPendingUrl='';state.mediaType='';state.mediaInfo=null;state.mediaError='';state.mediaValidating=false;
+    state.mediaFileName='';state.mediaFileUrl='';state.mediaPendingUrl='';state.mediaType='';state.mediaInfo=null;state.mediaAnnotations=null;state.mediaError='';state.mediaValidating=false;
+    state.signatureAnnotations={...DEMO_SIGNATURE_DEFAULTS};state.testEndpoint='';state.testEndpointConfirmed=false;state.testSending=false;state.testSendStatus='';
   };
   screen.querySelectorAll('[data-page]').forEach(el=>el.addEventListener('click',()=>setPage(el.dataset.page)));
   screen.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{
@@ -258,6 +342,7 @@ function bindScreenControls(){
     else if(action==='home') setPage('home');
     else if(action==='build') setPage('build');
     else if(action==='media-open') document.getElementById('mediaInput')?.click();
+    else if(action==='test-send') void sendTestPayload();
     else if(action==='media-clear'){clearMediaSelection();render();notify('Pré-visualização local removida.');}
     else if(action==='history-clear'){state.clearHistoryConfirm=true;render();}
     else if(action==='history-clear-cancel'){state.clearHistoryConfirm=false;render();}
@@ -335,6 +420,25 @@ function bindScreenControls(){
     probe.src=validationUrl;
     notify('Validando o conteúdo localmente…');
   });
+  const updateTestSendButton=()=>{
+    const sendButton=screen.querySelector('[data-action="test-send"]');
+    if(sendButton) sendButton.disabled=state.testSending||!state.testEndpoint.trim()||!state.testEndpointConfirmed;
+  };
+  screen.querySelectorAll('[data-annotation]').forEach(input=>input.addEventListener('input',()=>{
+    if(state.mediaAnnotations) state.mediaAnnotations[input.dataset.annotation]=input.value;
+    state.testSendStatus='';updateTestSendButton();
+  }));
+  screen.querySelectorAll('[data-signature]').forEach(input=>input.addEventListener('input',()=>{
+    state.signatureAnnotations[input.dataset.signature]=input.value;
+    state.testSendStatus='';updateTestSendButton();
+  }));
+  const testEndpointInput=document.getElementById('testEndpoint');
+  if(testEndpointInput) testEndpointInput.addEventListener('input',()=>{state.testEndpoint=testEndpointInput.value;state.testSendStatus='';updateTestSendButton();});
+  const confirmTestEndpoint=document.getElementById('confirmTestEndpoint');
+  if(confirmTestEndpoint) confirmTestEndpoint.addEventListener('change',()=>{state.testEndpointConfirmed=confirmTestEndpoint.checked;state.testSendStatus='';updateTestSendButton();});
+  updateTestSendButton();
+  const syntheticPreview=document.getElementById('syntheticTestPreview');
+  if(syntheticPreview){try{syntheticPreview.src=createSyntheticTestImageDataUrl();}catch{syntheticPreview.alt='Imagem sintética indisponível neste navegador.';}}
   const mediaInput=document.getElementById('mediaInput');
   if(mediaInput) mediaInput.addEventListener('change',event=>{
     const file=event.target.files&&event.target.files[0];
@@ -359,7 +463,7 @@ function bindScreenControls(){
     const acceptMedia=(width,height,duration=null)=>{
       if(sequence!==state.mediaSequence||state.page!=='live'){URL.revokeObjectURL(previewUrl);return;}
       if(width<1||height<1){rejectMedia('Arquivo recusado. O conteúdo não pôde ser aberto como mídia válida.');return;}
-      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaInfo={type:file.type,size:formatBytes(file.size),width,height,duration:Number.isFinite(duration)?duration:null};state.mediaError='';state.mediaValidating=false;
+      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaInfo={type:file.type,size:formatBytes(file.size),width,height,duration:Number.isFinite(duration)?duration:null};state.mediaAnnotations=mediaType==='image'?{fileName:'2025, 15-24-53.png',ip:'',cpf:'',latitude:'',longitude:'',mapUrl:''}:null;state.signatureAnnotations={...DEMO_SIGNATURE_DEFAULTS};state.testEndpoint='';state.testEndpointConfirmed=false;state.testSendStatus='';state.mediaError='';state.mediaValidating=false;
       render();notify('Pré-visualização local pronta; nenhum arquivo foi enviado.');
     };
     if(mediaType==='image'){
