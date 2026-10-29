@@ -6,7 +6,7 @@ const navItems = [
   {id:'help',label:'Ajuda'},
   {id:'build',label:'Construir'}
 ];
-const titles = {home:'Início',verify:'Verificação',history:'Histórico',permission:'Permissões',prepare:'Preparação',live:'Verificação oficial',alternate:'Alternativa autorizada',success:'Tudo certo',failure:'Não foi concluída',help:'Ajuda com a câmera',build:'Para construir de verdade'};
+const titles = {home:'Início',verify:'Verificação',history:'Histórico',permission:'Permissões',prepare:'Preparação',live:'Verificação oficial',fallback:'Opções sem câmera',alternate:'Alternativa autorizada',success:'Tudo certo',failure:'Não foi concluída',help:'Ajuda com a câmera',build:'Para construir de verdade'};
 const DEMO_HISTORY = [
   {id:'demo-1',service:'Portal Aurora',domain:'conta.aurora.example',time:'29 out 2026 · 09:41',method:'Verificação oficial por câmera'},
   {id:'demo-2',service:'Conta Horizonte',domain:'login.horizonte.example',time:'28 out 2026 · 18:23',method:'Chave de acesso (passkey)'},
@@ -15,6 +15,7 @@ const DEMO_HISTORY = [
 const state = {
   page:'home', permission:'unknown', issue:'none', checks:{frame:false,light:false,privacy:false},
   altAuthorized:false, fileName:'', fileUrl:'', validating:false, uploadSequence:0,
+  mediaFileName:'', mediaFileUrl:'', mediaPendingUrl:'', mediaType:'', mediaError:'', mediaValidating:false, mediaSequence:0,
   authHistory:DEMO_HISTORY.map(entry=>({...entry})), historyQuery:'', clearHistoryConfirm:false, toastTimer:null
 };
 const screen = document.getElementById('screenRoot');
@@ -27,6 +28,11 @@ function navMarkup(className){
 }
 function setPage(page){
   if(!titles[page]) return;
+  if(state.page==='live'&&page!=='live'&&state.mediaValidating){
+    state.mediaSequence+=1;
+    state.mediaValidating=false;
+    if(state.mediaPendingUrl){URL.revokeObjectURL(state.mediaPendingUrl);state.mediaPendingUrl='';}
+  }
   state.page=page;
   render();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -110,6 +116,7 @@ const views={
         </div>
         <div class="callout warning"><span class="callout-icon">⚠</span><div><strong>Protótipo, sem acesso real.</strong> “Simular estado” não abre câmera nem altera permissões do dispositivo.</div></div>
         <div class="button-row">${button(restricted?'Ver diagnóstico da câmera':'Continuar para preparação <span aria-hidden="true">→</span>',restricted?'help':'prepare',restricted?'btn btn-secondary':'btn btn-primary',state.permission==='unknown')}<button class="btn btn-outline" data-page="help">Ajuda</button></div>
+        <button class="text-button fallback-link" data-page="fallback">A câmera não funciona? Ver opções seguras →</button>
       </section>
       <aside><section class="panel"><h2>Permissão com contexto</h2><p class="panel-lead">A extensão real deve pedir acesso só quando necessário, explicar o motivo e respeitar a decisão da pessoa.</p><div class="divider"></div><div class="step-row"><span class="step-num">1</span><div><strong>Confira o site</strong><p>O domínio deve ser o serviço que iniciou a verificação.</p></div></div><div class="step-row"><span class="step-num">2</span><div><strong>Escolha conscientemente</strong><p>Negar não deve acionar qualquer método oculto ou alternativo.</p></div></div></section></aside>
     </div>`;
@@ -133,6 +140,12 @@ const views={
       <section class="panel">
         <div class="panel-heading"><div><h2>Você está no controle</h2><p>A verificação real deve acontecer no site ou app oficial do provedor.</p></div><span class="state-chip chip-blue">Demonstração</span></div>
         <div class="sim-preview"><div class="preview-content"><div class="face-outline" aria-hidden="true"></div><strong>Área visual ilustrativa</strong><small>Nenhuma câmera está ativa neste protótipo</small></div></div>
+        <section class="media-local-tools" aria-labelledby="mediaPreviewTitle"><div class="media-local-heading"><div><h3 id="mediaPreviewTitle">Pré-visualização local</h3><p>Selecione uma imagem ou vídeo para visualizar neste navegador.</p></div><span class="state-chip chip-blue">Não enviado</span></div>
+          <div class="button-row"><label class="media-picker-button"><span>Importar imagem ou vídeo</span><input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"></label>${state.mediaFileUrl||state.mediaValidating?button('Remover mídia','media-clear','btn btn-outline btn-small'):''}</div>
+          <p class="media-status ${state.mediaError?'media-error':''}" id="mediaStatus" role="status" aria-live="polite">${state.mediaValidating?'Validando o arquivo localmente…':state.mediaError?escapeHTML(state.mediaError):state.mediaFileName?`Pronto para visualizar: ${escapeHTML(state.mediaFileName)}`:'JPG, PNG, WebP, MP4 ou WebM · até 25 MB.'}</p>
+          ${state.mediaFileUrl&&state.mediaType==='video'?`<video class="media-preview" src="${state.mediaFileUrl}" controls playsinline preload="metadata" aria-label="Pré-visualização local do vídeo"></video>`:state.mediaFileUrl?`<img class="media-preview" src="${state.mediaFileUrl}" alt="Pré-visualização local da imagem">`:''}
+          <div class="callout warning media-warning"><span class="callout-icon">!</span><div>Esta mídia é apenas para visualização. Não ativa a câmera, não é enviada ao serviço e não pode substituir a verificação de presença ou identidade.</div></div>
+        </section>
         <p class="security-footnote">Em um produto real, o Verifica não substitui o fluxo do provedor nem interfere no vídeo usado para verificação de presença.</p>
         <div class="button-row" style="margin-top:15px">${button('Simular conclusão bem-sucedida','success','btn btn-primary')}${button('Simular falha','failure','btn btn-outline')}</div>
       </section>
@@ -144,6 +157,14 @@ const views={
         ${!state.altAuthorized?'<p class="tiny-note">Sem autorização explícita, nenhuma opção de upload deve ser mostrada.</p>':''}
       </section></aside>
     </div>`;},
+  fallback(){return `
+    <div class="content-layout"><section class="panel"><div class="panel-heading"><div><h2>A câmera não funciona?</h2><p>Você pode seguir opções seguras sem tentar contornar a verificação.</p></div><span class="state-chip chip-gold">Alternativa segura</span></div>
+      <div class="step-list"><div class="step-row"><span class="step-num">1</span><div><strong>Tente outro dispositivo confiável</strong><p>Abra o site ou app oficial em um aparelho com câmera funcional e confira o domínio antes de continuar.</p></div></div>
+        <div class="step-row"><span class="step-num">2</span><div><strong>Veja se o serviço oferece outro método</strong><p>Use passkey, aplicativo oficial ou outro método sem câmera somente se ele aparecer nas opções do próprio serviço.</p></div></div>
+        <div class="step-row"><span class="step-num">3</span><div><strong>Fale com o suporte oficial</strong><p>Se não houver método alternativo, procure o suporte pelo site ou app oficial. Não envie imagens ou vídeos por canais desconhecidos.</p></div></div></div>
+      <div class="callout warning"><span class="callout-icon">!</span><div><strong>Importar mídia não resolve a verificação.</strong> O botão de imagem/vídeo deste protótipo serve só para pré-visualização local; não substitui câmera nem prova de vida.</div></div>
+      <div class="button-row">${button('Rever permissões','permission','btn btn-outline')}${button('Abrir diagnóstico','help','btn btn-secondary')}</div>
+    </section><aside><section class="panel"><span class="state-chip chip-blue">Sem câmera</span><h2 style="margin-top:14px">A decisão é do provedor</h2><p class="panel-lead">O Verifica não inventa um método de autenticação. Só o serviço que pediu a verificação pode autorizar uma alternativa.</p></section></aside></div>`;},
   alternate(){
     if(!state.altAuthorized) return `<section class="panel result-card"><div class="result-icon fail">!</div><h2>Alternativa indisponível</h2><p>O serviço não informou que aceita outro método. Continue pelo fluxo oficial ou fale com o suporte.</p>${button('Voltar à verificação','live')}</section>`;
     return `<div class="content-layout"><section class="panel"><div class="panel-heading"><div><h2>Método alternativo autorizado</h2><p>Esta opção só existe na demonstração porque você ativou o sinal simulado do serviço.</p></div><span class="state-chip chip-green">Autorização simulada</span></div>
@@ -187,6 +208,7 @@ const views={
       <div class="diagnostic-result"><h3>${selected.title}</h3><p>Experimente os seguintes passos no seu navegador ou no site oficial:</p><ol>${guidance[selected.id].map(s=>`<li>${s}</li>`).join('')}</ol></div>
       <div class="callout info"><span class="callout-icon">i</span><div>Este protótipo não consegue detectar o estado real do seu dispositivo. Os diagnósticos são exemplos interativos.</div></div>
       ${button('Voltar ao fluxo','permission','btn btn-secondary')}
+      ${button('Câmera não funciona? Ver opções seguras','fallback','btn btn-outline')}
     </section><aside><section class="panel"><span class="state-chip chip-gold">Dica de segurança</span><h2 style="margin-top:14px">Não compartilhe sua imagem por canais aleatórios</h2><p class="panel-lead">Use somente um fluxo informado pelo serviço que solicitou a verificação. Desconfie de pedidos por chat, e-mail ou sites fora do domínio oficial.</p></section></aside></div>`;
   },
   build(){
@@ -195,6 +217,7 @@ const views={
       ['◎','Integração com serviço oficial','API, SDK ou fluxo documentado pelo provedor; validar domínio e origem dos sinais de autorização.','ESSENCIAL'],
       ['▣','Permissões e câmera','Solicitar câmera apenas no contexto oficial, após ação clara da pessoa; tratar concedida, negada e bloqueada.','ESSENCIAL'],
       ['⇧','Alternativas autorizadas','Exibir upload somente quando o provedor permitir explicitamente; validar tipo, tamanho, consentimento e destino.','ESSENCIAL'],
+      ['◎','Opções se a câmera falhar','Orientar outro dispositivo e métodos sem câmera apenas quando o serviço oficial os oferecer; caso contrário, direcionar ao suporte oficial.','ESSENCIAL'],
       ['↺','Histórico de autenticações','Registrar somente eventos de sucesso confirmados pelo serviço, com retenção e exclusão claras. Nunca guardar senhas, tokens, imagens ou dados biométricos.','ESSENCIAL'],
       ['◇','Privacidade e segurança','Minimização de dados, transmissão criptografada, retenção definida, proteção contra exposição e política de privacidade.','ESSENCIAL'],
       ['♿','Acessibilidade e idioma','Teclado, leitor de tela, foco visível, contraste, linguagem simples e suporte a pt-BR.','QUALIDADE'],
@@ -207,6 +230,11 @@ const views={
 };
 function escapeHTML(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function bindScreenControls(){
+  const clearMediaSelection=()=>{
+    state.mediaSequence+=1;
+    [state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url));
+    state.mediaFileName='';state.mediaFileUrl='';state.mediaPendingUrl='';state.mediaType='';state.mediaError='';state.mediaValidating=false;
+  };
   screen.querySelectorAll('[data-page]').forEach(el=>el.addEventListener('click',()=>setPage(el.dataset.page)));
   screen.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{
     if(el.disabled) return;
@@ -219,8 +247,11 @@ function bindScreenControls(){
     else if(action==='alternate') setPage('alternate');
     else if(action==='success'||action==='failure') setPage(action);
     else if(action==='help') setPage('help');
+    else if(action==='fallback') setPage('fallback');
     else if(action==='home') setPage('home');
     else if(action==='build') setPage('build');
+    else if(action==='media-open') document.getElementById('mediaInput')?.click();
+    else if(action==='media-clear'){clearMediaSelection();render();notify('Pré-visualização local removida.');}
     else if(action==='history-clear'){state.clearHistoryConfirm=true;render();}
     else if(action==='history-clear-cancel'){state.clearHistoryConfirm=false;render();}
     else if(action==='history-clear-confirm'){state.authHistory=[];state.historyQuery='';state.clearHistoryConfirm=false;render();notify('Os registros de exemplo foram removidos.');}
@@ -297,9 +328,53 @@ function bindScreenControls(){
     probe.src=validationUrl;
     notify('Validando o conteúdo localmente…');
   });
+  const mediaInput=document.getElementById('mediaInput');
+  if(mediaInput) mediaInput.addEventListener('change',event=>{
+    const file=event.target.files&&event.target.files[0];
+    if(!file)return;
+    clearMediaSelection();
+    const allowedTypes=['image/jpeg','image/png','image/webp','video/mp4','video/webm'];
+    if(!allowedTypes.includes(file.type)){state.mediaError='Arquivo recusado. Escolha JPG, PNG, WebP, MP4 ou WebM.';render();notify(state.mediaError);return;}
+    if(file.size>25*1024*1024){state.mediaError='Arquivo recusado. O limite desta pré-visualização local é 25 MB.';render();notify(state.mediaError);return;}
+    const sequence=state.mediaSequence;
+    const previewUrl=URL.createObjectURL(file);
+    const mediaType=file.type.startsWith('video/')?'video':'image';
+    state.mediaPendingUrl=previewUrl;
+    state.mediaValidating=true;
+    render();
+    const rejectMedia=message=>{
+      URL.revokeObjectURL(previewUrl);
+      if(sequence!==state.mediaSequence)return;
+      state.mediaSequence+=1;
+      state.mediaPendingUrl='';state.mediaValidating=false;state.mediaError=message;
+      render();notify(message);
+    };
+    const acceptMedia=(width,height)=>{
+      if(sequence!==state.mediaSequence||state.page!=='live'){URL.revokeObjectURL(previewUrl);return;}
+      if(width<1||height<1){rejectMedia('Arquivo recusado. O conteúdo não pôde ser aberto como mídia válida.');return;}
+      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaError='';state.mediaValidating=false;
+      render();notify('Pré-visualização local pronta; nenhum arquivo foi enviado.');
+    };
+    if(mediaType==='image'){
+      const probe=new Image();
+      probe.onload=()=>acceptMedia(probe.naturalWidth,probe.naturalHeight);
+      probe.onerror=()=>rejectMedia('Arquivo recusado. A imagem não pôde ser decodificada.');
+      probe.src=previewUrl;
+    }else{
+      const probe=document.createElement('video');
+      probe.preload='metadata';
+      probe.onloadedmetadata=()=>acceptMedia(probe.videoWidth,probe.videoHeight);
+      probe.onerror=()=>rejectMedia('Arquivo recusado. O vídeo não pôde ser decodificado neste navegador.');
+      probe.src=previewUrl;
+      probe.load();
+    }
+    notify('Validando a mídia localmente…');
+  });
 }
 document.addEventListener('click',event=>{
   const target=event.target.closest('[data-page]');
   if(target && !screen.contains(target) && !target.closest('#screenRoot')) setPage(target.dataset.page);
 });
 render();
+
+window.addEventListener('beforeunload',()=>[state.fileUrl,state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url)));

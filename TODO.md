@@ -25,3 +25,12 @@
 - [x] Navegação clicável entre as telas principais, responsiva ao formato compacto de extensão e a dispositivos menores.
 - [x] Abrir o protótipo em tela cheia e testar navegação, busca, confirmação de limpeza, estado vazio e restauração dos exemplos.
 - [x] A documentação lista requisitos técnicos, permissões, integrações, privacidade, segurança, acessibilidade, testes, publicação e minimização dos dados de histórico para construir a extensão real.
+
+## 6. Pré-visualização local de mídia
+- [x] Adicionar à tela de verificação um botão para importar imagem e vídeo somente para pré-visualização local.
+- [x] Não enviar a mídia, ativar a câmera, autenticar ou usar o arquivo para substituir a verificação de presença/identidade.
+- [x] Validar tipo, tamanho e decodificação; permitir remover a seleção e liberar URLs temporárias ao limpar ou fechar o protótipo.
+
+## 7. Alternativa quando a câmera não funcionar
+- [x] Oferecer um caminho separado que oriente a tentar outro dispositivo/navegador ou um método sem câmera somente se o serviço oficial o disponibilizar.
+- [x] Se não houver método oficial alternativo, orientar a pessoa a contatar o suporte do serviço; não tratar mídia importada como prova de presença ou substituto de câmera.
