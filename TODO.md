@@ -63,3 +63,8 @@
 - [x] Salvar o painel no repositório GitHub autorizado.
 
 Evidência: smoke test integrado aprovado, incluindo exportação JSON e digest do ZIP. Na checagem automática do painel, zero violações nos oito estados desktop/mobile; um alvo de contraste inconclusivo permanece para revisão humana, separado dos relatórios da extensão. Fotos importadas continuam sendo apenas prévias locais e não substituem captura oficial exigida.
+
+## 12. SEO de /painel.html
+- [x] Adicionar uma meta keywords com no mínimo 3 e no máximo 8 termos relevantes.
+- [x] Reescrever a meta description com 50 a 160 caracteres, visando aproximadamente 150 e nunca excedendo o máximo.
+- [x] Preencher alt descritivo da única imagem da página e preservar a navegação acessível e o relatório modificado pelo usuário.
