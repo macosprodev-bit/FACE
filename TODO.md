@@ -60,6 +60,6 @@
 - [x] Oferecer checklist local de revisão humana e guias; manter dados somente em memória e permitir redefinir a autoavaliação com confirmação.
 - [x] Manter navegação responsiva, teclado, foco visível, pt-BR e estados vazios; preservar webcam/mídia do protótipo original sem acioná-las pelo painel.
 - [x] Não enviar dados pessoais, chamar endpoint, iniciar OAuth, usar webcam virtual, instalar a extensão ou executar testes no dispositivo do usuário.
-- [ ] Salvar o painel no repositório GitHub autorizado.
+- [x] Salvar o painel no repositório GitHub autorizado.
 
 Evidência: smoke test integrado aprovado, incluindo exportação JSON e digest do ZIP. Na checagem automática do painel, zero violações nos oito estados desktop/mobile; um alvo de contraste inconclusivo permanece para revisão humana, separado dos relatórios da extensão. Fotos importadas continuam sendo apenas prévias locais e não substituem captura oficial exigida.
