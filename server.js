@@ -6,6 +6,11 @@ const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml'};
 http.createServer((req, res) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    req.resume();
+    res.writeHead(405, {'Allow':'GET, HEAD','Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});
+    return res.end('Method Not Allowed');
+  }
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(req.url || '/', 'http://localhost').pathname);
@@ -22,6 +27,7 @@ http.createServer((req, res) => {
   fs.readFile(filePath, (error, data) => {
     if (error) { res.writeHead(404, {'Content-Type':'text/plain; charset=utf-8'}); return res.end('Not found'); }
     res.writeHead(200, {'Content-Type':types[path.extname(filePath)] || 'application/octet-stream','Cache-Control':'no-cache'});
+    if (req.method === 'HEAD') return res.end();
     res.end(data);
   });
 }).listen(port, host, () => console.log(`Verifica demo listening on ${host}:${port}`));

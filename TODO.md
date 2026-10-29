@@ -37,7 +37,17 @@
 - [x] Oferecer um caminho separado que oriente a tentar outro dispositivo/navegador ou um método sem câmera somente se o serviço oficial o disponibilizar.
 - [x] Se não houver método oficial alternativo, orientar a pessoa a contatar o suporte do serviço; não tratar mídia importada como prova de presença ou substituto de câmera.
 
-## 8. Envio de payload fictício para endpoint de teste
-- [x] Permitir editar o endpoint HTTPS e todos os campos enviados; só enviar após ação explícita e confirmação de que o endpoint está sob controle da pessoa e que os dados são fictícios.
-- [x] Enviar somente um JSON com anotações editáveis de IP, CPF, latitude, longitude, URL de mapa, componente/versão/origem/status/motivo/número de documento simulados e uma imagem sintética sem rosto; nunca enviar a imagem importada.
-- [x] Manter fixos os sinalizadores de segurança (“teste”, “simulado”, “não verificado” e “imagem sintética”); não criar nem validar assinatura criptográfica, não incluir cookies/credenciais e exibir resultado ou erro de conexão/CORS sem revelar resposta bruta do endpoint.
+## 8. Prévia local de payload fictício, sem envio real
+- [x] Manter a URL do endpoint como campo editável de anotação, sem conectá-la nem enviar requisições.
+- [x] Permitir gerar somente no navegador uma prévia JSON com anotações editáveis e uma imagem PNG sintética sem rosto; nunca incluir a imagem importada ou a foto da webcam.
+- [x] Manter fixos os sinalizadores “teste”, “simulado”, “não verificado” e “imagem sintética”; não criar nem validar assinatura criptográfica, não usar cookies/credenciais e não realizar POST, CORS ou qualquer chamada de rede.
+- [x] Restringir o servidor estático a GET/HEAD; responder HTTP 405 a outros métodos sem processar seus corpos.
+
+## 9. Captura local da webcam
+- [x] Solicitar acesso à webcam somente após clique explícito, sem pedir microfone, e mostrar estados de permissão, câmera indisponível e erro.
+- [x] Permitir capturar uma foto local para pré-visualização, sem autenticar, analisar rosto/presença ou enviar a foto ao serviço/endpoint de teste.
+- [x] Parar as faixas da câmera após captura, ao sair da tela ou fechar/recarregar a página; ao remover a foto, liberar o URL temporário.
+- [x] Separar metadados técnicos reais da captura (somente leitura) de rótulo/observação editáveis e não verificados; não alterar EXIF, data/hora, localização ou bytes do arquivo, nem enviar essas anotações.
+
+## 10. Limite de webcam virtual
+- [x] O protótipo não cria um dispositivo de webcam virtual nem substitui/intercepta o vídeo visto por outros aplicativos; oferece apenas acesso opcional à câmera real após clique explícito e captura local.

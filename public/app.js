@@ -17,9 +17,71 @@ const state = {
   page:'home', permission:'unknown', issue:'none', checks:{frame:false,light:false,privacy:false},
   altAuthorized:false, fileName:'', fileUrl:'', validating:false, uploadSequence:0,
   mediaFileName:'', mediaFileUrl:'', mediaPendingUrl:'', mediaType:'', mediaInfo:null, mediaAnnotations:null, mediaError:'', mediaValidating:false, mediaSequence:0,
-  signatureAnnotations:{...DEMO_SIGNATURE_DEFAULTS}, testEndpoint:'', testEndpointConfirmed:false, testSending:false, testSendStatus:'',
+  signatureAnnotations:{...DEMO_SIGNATURE_DEFAULTS}, testEndpoint:'', testPayloadVisible:false, testPayloadJson:'',
+  cameraStream:null, cameraBusy:false, cameraReady:false, cameraCapturing:false, cameraError:'', cameraPhotoUrl:'', cameraPhotoInfo:null, cameraAnnotations:{label:'',note:''}, cameraRequestSequence:0, cameraCaptureSequence:0,
   authHistory:DEMO_HISTORY.map(entry=>({...entry})), historyQuery:'', clearHistoryConfirm:false, toastTimer:null
 };
+function stopWebcamStream(){
+  if(state.cameraStream) state.cameraStream.getTracks().forEach(track=>track.stop());
+  state.cameraStream=null;state.cameraReady=false;
+}
+function clearWebcamPhoto(){
+  if(state.cameraPhotoUrl) URL.revokeObjectURL(state.cameraPhotoUrl);
+  state.cameraPhotoUrl='';state.cameraPhotoInfo=null;
+}
+function resetWebcamState(){
+  state.cameraRequestSequence+=1;state.cameraCaptureSequence+=1;
+  stopWebcamStream();clearWebcamPhoto();
+  state.cameraBusy=false;state.cameraCapturing=false;state.cameraError='';
+  state.cameraAnnotations={label:'',note:''};
+}
+function cameraFailureMessage(error){
+  if(error?.name==='NotAllowedError'||error?.name==='SecurityError') return 'O navegador ou o sistema bloqueou a webcam. Permita o acesso para este site HTTPS; se a prévia estiver incorporada, abra-a em uma aba do navegador.';
+  if(error?.name==='NotFoundError'||error?.name==='DevicesNotFoundError') return 'Nenhuma webcam foi encontrada. Confira se a câmera integrada está habilitada no Windows e tente novamente.';
+  if(error?.name==='NotReadableError'||error?.name==='AbortError') return 'A webcam está ocupada ou desativada. Feche outros aplicativos que a usam e confira as configurações do Windows.';
+  return 'Não foi possível iniciar a webcam neste navegador. Confira a permissão do site e as configurações da câmera.';
+}
+async function startWebcam(){
+  if(state.cameraBusy||state.cameraStream) return;
+  if(!window.isSecureContext){state.cameraError='A webcam exige uma página segura HTTPS.';render();return;}
+  const devices=navigator.mediaDevices;
+  if(!devices||typeof devices.getUserMedia!=='function'){state.cameraError='Este navegador ou a prévia incorporada não disponibiliza a webcam. Tente abrir a prévia em uma aba HTTPS.';render();return;}
+  const requestId=++state.cameraRequestSequence;
+  state.cameraBusy=true;state.cameraReady=false;state.cameraError='';render();
+  try{
+    const stream=await devices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false});
+    if(requestId!==state.cameraRequestSequence||state.page!=='live'){stream.getTracks().forEach(track=>track.stop());return;}
+    state.cameraStream=stream;state.cameraBusy=false;render();
+  }catch(error){
+    if(requestId!==state.cameraRequestSequence||state.page!=='live') return;
+    state.cameraBusy=false;state.cameraError=cameraFailureMessage(error);render();
+  }
+}
+function captureWebcamPhoto(){
+  const video=document.getElementById('webcamVideo');
+  if(!state.cameraStream||!video||video.videoWidth<1||video.videoHeight<1){state.cameraError='A prévia da webcam ainda está iniciando. Aguarde um instante e tente novamente.';render();return;}
+  if(state.cameraCapturing) return;
+  state.cameraCapturing=true;
+  const captureId=++state.cameraCaptureSequence;
+  const width=video.videoWidth,height=video.videoHeight;
+  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+  const context=canvas.getContext('2d');
+  if(!context){state.cameraCapturing=false;state.cameraError='Não foi possível preparar a foto local neste navegador.';render();return;}
+  context.drawImage(video,0,0,width,height);
+  const captureButton=screen.querySelector('[data-action="camera-capture"]');
+  if(captureButton){captureButton.disabled=true;captureButton.textContent='Capturando…';}
+  try{
+    canvas.toBlob(blob=>{
+      if(captureId!==state.cameraCaptureSequence||state.page!=='live') return;
+      state.cameraCapturing=false;
+      if(!blob){state.cameraError='A foto não pôde ser criada. Tente novamente.';render();return;}
+      clearWebcamPhoto();state.cameraPhotoUrl=URL.createObjectURL(blob);state.cameraPhotoInfo={width,height,size:formatBytes(blob.size),mimeType:'image/png',capturedAt:new Date().toISOString()};
+      stopWebcamStream();state.cameraError='';render();notify('Foto capturada localmente. A webcam foi desligada; a foto não foi enviada.');
+    },'image/png');
+  }catch{
+    state.cameraCapturing=false;state.cameraError='A foto não pôde ser criada. Tente novamente.';render();
+  }
+}
 const screen = document.getElementById('screenRoot');
 const pageTitle = document.getElementById('pageTitle');
 const eyebrow = document.getElementById('eyebrow');
@@ -30,10 +92,12 @@ function navMarkup(className){
 }
 function setPage(page){
   if(!titles[page]) return;
-  if(state.page==='live'&&page!=='live'&&state.mediaValidating){
-    state.mediaSequence+=1;
-    state.mediaValidating=false;
-    if(state.mediaPendingUrl){URL.revokeObjectURL(state.mediaPendingUrl);state.mediaPendingUrl='';}
+  if(state.page==='live'&&page!=='live'){
+    if(state.mediaValidating){
+      state.mediaSequence+=1;state.mediaValidating=false;
+      if(state.mediaPendingUrl){URL.revokeObjectURL(state.mediaPendingUrl);state.mediaPendingUrl='';}
+    }
+    resetWebcamState();
   }
   state.page=page;
   render();
@@ -66,7 +130,7 @@ const views={
         <div class="button-row">${button('Preparar câmera <span aria-hidden="true">→</span>','permission','btn btn-primary')}<button class="btn btn-ghost" data-page="verify">Como funciona</button></div>
       </section>
       <aside class="hero-aside">
-        <div><div class="aside-icon" aria-hidden="true">⌁</div><h3>Você mantém o controle</h3><p>Não acessa a câmera nem guarda dados. A imagem importada fica local; o envio opcional usa apenas um PNG sintético.</p></div>
+        <div><div class="aside-icon" aria-hidden="true">⌁</div><h3>Você mantém o controle</h3><p>A webcam só é solicitada após seu clique; a foto capturada fica nesta tela. Mídias e prévias de dados permanecem locais; nenhuma chamada de rede é feita.</p></div>
         <button class="mini-link" data-page="build">Veja como seria construído <span aria-hidden="true">→</span></button>
       </aside>
     </div>
@@ -86,7 +150,7 @@ const views={
           <div class="step-row"><span class="step-num">2</span><div><strong>Revise a permissão</strong><p>O navegador pede acesso à câmera somente no contexto do site oficial e após sua ação.</p></div></div>
           <div class="step-row"><span class="step-num">3</span><div><strong>Conclua no serviço de origem</strong><p>Presença e identidade são verificadas pelo provedor — nunca por uma imagem estática neste protótipo.</p></div></div>
         </div>
-        <div class="callout info"><span class="callout-icon">i</span><div><strong>Este fluxo é demonstrativo.</strong> Nenhuma câmera é ligada nem há envio automático; o único envio possível é manual, após confirmação, com JSON fictício e PNG sintético.</div></div>
+        <div class="callout info"><span class="callout-icon">i</span><div><strong>Este fluxo é demonstrativo.</strong> A webcam só é solicitada após clique explícito no painel local; a foto não autentica nem é enviada. A URL do endpoint é apenas editável: a prévia de JSON e PNG sintético é local e nenhuma chamada de rede é feita.</div></div>
         ${button('Começar preparação <span aria-hidden="true">→</span>','permission')}
       </section>
       <aside>
@@ -109,14 +173,14 @@ const views={
     return `<div class="content-layout">
       <section class="panel">
         <div class="panel-heading"><div><h2>Permissão de câmera</h2><p>Em uma extensão real, o pedido deve ser contextual e partir de um serviço autorizado.</p></div><span class="state-chip ${restricted?'chip-red':state.permission==='granted'?'chip-green':'chip-gold'}">${permissionLabel}</span></div>
-        ${restricted?`<div class="callout danger"><span class="callout-icon">!</span><div><strong>${permissionLabel}.</strong> ${permissionMessage}</div></div>`:`<div class="permission-card"><span class="big-icon" aria-hidden="true">◎</span><div><h3>Por que a câmera pode ser necessária?</h3><p>Alguns serviços oficiais usam vídeo ao vivo para verificar presença. O Verifica não captura nem transmite imagens nesta demonstração.</p></div></div>`}
+        ${restricted?`<div class="callout danger"><span class="callout-icon">!</span><div><strong>${permissionLabel}.</strong> ${permissionMessage}</div></div>`:`<div class="permission-card"><span class="big-icon" aria-hidden="true">◎</span><div><h3>Por que a câmera pode ser necessária?</h3><p>Alguns serviços oficiais usam vídeo ao vivo para verificar presença. Neste protótipo, a webcam só pode ser usada no painel de captura local após seu clique; a foto não é enviada nem usada para autenticar.</p></div></div>`}
         <div class="section-label">SIMULAR ESTADO DA PERMISSÃO</div>
         <div class="radio-stack">
           <label class="option-row"><input type="radio" name="perm" value="granted" ${state.permission==='granted'?'checked':''}><span><strong>Concedida pelo navegador</strong><small>O fluxo oficial pode solicitar acesso no momento adequado.</small></span></label>
           <label class="option-row"><input type="radio" name="perm" value="denied" ${denied?'checked':''}><span><strong>Negada</strong><small>A pessoa recusou o pedido desta vez.</small></span></label>
           <label class="option-row"><input type="radio" name="perm" value="blocked" ${blocked?'checked':''}><span><strong>Bloqueada pelo navegador</strong><small>A permissão precisa ser alterada nas configurações do site.</small></span></label>
         </div>
-        <div class="callout warning"><span class="callout-icon">⚠</span><div><strong>Protótipo, sem acesso real.</strong> “Simular estado” não abre câmera nem altera permissões do dispositivo.</div></div>
+        <div class="callout warning"><span class="callout-icon">⚠</span><div><strong>Estados demonstrativos.</strong> “Simular estado” não abre a câmera nem altera permissões; o acesso real da webcam só é solicitado depois, pelo botão local explícito.</div></div>
         <div class="button-row">${button(restricted?'Ver diagnóstico da câmera':'Continuar para preparação <span aria-hidden="true">→</span>',restricted?'help':'prepare',restricted?'btn btn-secondary':'btn btn-primary',state.permission==='unknown')}<button class="btn btn-outline" data-page="help">Ajuda</button></div>
         <button class="text-button fallback-link" data-page="fallback">A câmera não funciona? Ver opções seguras →</button>
       </section>
@@ -135,20 +199,29 @@ const views={
         <div class="callout info"><span class="callout-icon">i</span><div><strong>Você decide quando continuar.</strong> O serviço oficial apresentará suas instruções e controles de câmera.</div></div>
         <div class="button-row">${button('Iniciar demonstração oficial <span aria-hidden="true">→</span>','live','btn btn-primary',!Object.values(state.checks).every(Boolean))}<button class="btn btn-outline" data-page="help">Preciso de ajuda</button></div>
       </section>
-      <aside><section class="panel"><span class="state-chip chip-green">✓ Preparação</span><h2 style="margin-top:14px">O que esta tela não faz</h2><p class="panel-lead">Nesta etapa, não ativa sensores, não grava vídeo, não lê seu rosto nem envia a imagem escolhida. Um teste opcional separado envia somente um PNG sintético após confirmação.</p><div class="divider"></div><button class="text-button" data-page="build">Ver requisitos técnicos →</button></section></aside>
+      <aside><section class="panel"><span class="state-chip chip-green">✓ Preparação</span><h2 style="margin-top:14px">O que esta tela não faz</h2><p class="panel-lead">Nesta etapa, não ativa sensores, não grava vídeo, não lê seu rosto nem envia a imagem escolhida. A URL de teste não é chamada; um JSON e um PNG sintético podem ser pré-visualizados localmente.</p><div class="divider"></div><button class="text-button" data-page="build">Ver requisitos técnicos →</button></section></aside>
     </div>`;},
   live(){return `
     <div class="content-layout">
       <section class="panel">
         <div class="panel-heading"><div><h2>Você está no controle</h2><p>A verificação real deve acontecer no site ou app oficial do provedor.</p></div><span class="state-chip chip-blue">Demonstração</span></div>
-        <div class="sim-preview"><div class="preview-content"><div class="face-outline" aria-hidden="true"></div><strong>Área visual ilustrativa</strong><small>Nenhuma câmera está ativa neste protótipo</small></div></div>
+        <div class="sim-preview"><div class="preview-content"><div class="face-outline" aria-hidden="true"></div><strong>Área visual ilustrativa</strong><small>A webcam só é solicitada após seu clique no painel local abaixo.</small></div></div>
+        <section class="webcam-capture-card" aria-labelledby="webcamCaptureTitle">
+          <div class="media-local-heading"><div><h3 id="webcamCaptureTitle">Capturar foto da webcam</h3><p>Acesso opcional, iniciado por você; não cria uma webcam virtual.</p></div><span class="state-chip chip-gold">Somente local</span></div>
+          ${state.cameraStream?`<video id="webcamVideo" class="webcam-preview" autoplay muted playsinline aria-label="Prévia ao vivo da webcam"></video>`:state.cameraPhotoUrl?`<img class="webcam-preview" src="${state.cameraPhotoUrl}" alt="Foto capturada localmente da webcam">`:'<div class="webcam-placeholder"><span aria-hidden="true">◎</span><strong>Nenhuma câmera ativa</strong><small>Clique em “Ativar webcam” para solicitar permissão.</small></div>'}
+          ${state.cameraPhotoInfo?`<dl class="webcam-tech-details"><div><dt>Formato</dt><dd>${escapeHTML(state.cameraPhotoInfo.mimeType)}</dd></div><div><dt>Resolução</dt><dd>${state.cameraPhotoInfo.width} × ${state.cameraPhotoInfo.height} px</dd></div><div><dt>Tamanho</dt><dd>${escapeHTML(state.cameraPhotoInfo.size)}</dd></div><div><dt>Horário do navegador</dt><dd>${escapeHTML(new Date(state.cameraPhotoInfo.capturedAt).toLocaleString('pt-BR'))} · não verificado</dd></div></dl>`:''}
+          <section class="webcam-annotation-panel" aria-labelledby="webcamAnnotationsTitle"><div class="media-annotations-heading"><div><h4 id="webcamAnnotationsTitle">Anotações locais</h4><p>Editáveis, não verificadas</p></div><span class="state-chip chip-gold">Não fazem parte do arquivo</span></div><div class="webcam-annotation-fields"><label>Rótulo local<input data-camera-annotation="label" type="text" maxlength="100" value="${escapeHTML(state.cameraAnnotations.label)}" placeholder="Ex.: captura de teste" autocomplete="off"></label><label>Observação<input data-camera-annotation="note" type="text" maxlength="240" value="${escapeHTML(state.cameraAnnotations.note)}" placeholder="Nota opcional" autocomplete="off"></label></div><p class="media-annotations-note">As anotações ficam apenas nesta sessão. Não alteram pixels, EXIF, horário, localização ou origem da webcam e não são enviadas ao endpoint.</p></section>
+          <p class="webcam-status ${state.cameraError?'media-error':''}" id="webcamStatus" role="status" aria-live="polite">${state.cameraBusy?'Aguardando a permissão do navegador…':state.cameraError?escapeHTML(state.cameraError):state.cameraStream?'Webcam ativa somente para a prévia; nada é salvo até você capturar.':state.cameraPhotoUrl?'Foto disponível apenas nesta tela; a webcam está desligada.':'A permissão só será solicitada após seu clique. Nenhuma captura é automática.'}</p>
+          <div class="button-row">${state.cameraStream?button(state.cameraCapturing?'Capturando…':'Capturar foto','camera-capture','btn btn-primary',!state.cameraReady||state.cameraCapturing):button(state.cameraBusy?'Solicitando permissão…':'Ativar webcam','camera-start','btn btn-primary',state.cameraBusy)}${state.cameraStream?button('Parar câmera','camera-stop','btn btn-outline',state.cameraCapturing):''}${state.cameraPhotoUrl?button('Remover foto','camera-clear','btn btn-outline btn-small'):''}</div>
+          <p class="tiny-note">Sem microfone. A foto capturada fica em memória nesta tela, não verifica identidade ou prova de vida e não é incluída na prévia JSON local, que usa apenas o PNG sintético. Outros aplicativos continuam usando as câmeras instaladas no sistema.</p>
+        </section>
         <section class="media-local-tools" aria-labelledby="mediaPreviewTitle"><div class="media-local-heading"><div><h3 id="mediaPreviewTitle">Pré-visualização local</h3><p>Selecione uma imagem ou vídeo para visualizar neste navegador.</p></div><span class="state-chip chip-blue">Arquivo local</span></div>
-          <div class="button-row"><div class="media-picker-group"><label class="media-picker-button" for="mediaInput">Importar imagem ou vídeo</label><input id="mediaInput" class="media-file-input" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" aria-label="Selecionar arquivo para pré-visualização local" ${state.testSending?'disabled':''}></div>${state.mediaFileUrl||state.mediaValidating?button('Remover mídia','media-clear','btn btn-outline btn-small',state.testSending):''}</div>
+          <div class="button-row"><div class="media-picker-group"><label class="media-picker-button" for="mediaInput">Importar imagem ou vídeo</label><input id="mediaInput" class="media-file-input" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" aria-label="Selecionar arquivo para pré-visualização local"></div>${state.mediaFileUrl||state.mediaValidating?button('Remover mídia','media-clear','btn btn-outline btn-small'):''}</div>
           <p class="media-status ${state.mediaError?'media-error':''}" id="mediaStatus" role="status" aria-live="polite">${state.mediaValidating?'Validando o arquivo localmente…':state.mediaError?escapeHTML(state.mediaError):state.mediaFileName?`Pronto para visualizar: ${escapeHTML(state.mediaFileName)}`:'JPG, PNG, WebP, MP4 ou WebM · até 25 MB.'}</p>
           ${state.mediaFileUrl&&state.mediaType==='video'?`<video class="media-preview" src="${state.mediaFileUrl}" controls playsinline preload="metadata" aria-label="Pré-visualização local do vídeo"></video>`:state.mediaFileUrl?`<img class="media-preview" src="${state.mediaFileUrl}" alt="Pré-visualização local da imagem">`:''}
           ${state.mediaInfo?`<div class="media-validation-card"><div class="media-validation-heading"><span class="validation-mark" aria-hidden="true">✓</span><div><strong>Válida para visualização local</strong><small>Arquivo decodificado neste navegador.</small></div></div><dl class="media-meta-grid"><div><dt>Formato</dt><dd>${escapeHTML(state.mediaInfo.type)}</dd></div><div><dt>Tamanho</dt><dd>${escapeHTML(state.mediaInfo.size)}</dd></div><div><dt>Dimensões</dt><dd>${state.mediaInfo.width} × ${state.mediaInfo.height} px</dd></div>${state.mediaType==='video'?`<div><dt>Duração</dt><dd>${state.mediaInfo.duration===null?'Não disponível':`${state.mediaInfo.duration.toFixed(1)} s`}</dd></div>`:''}<div><dt>Decodificação</dt><dd>OK</dd></div></dl><p class="media-validation-note">Validação técnica local; não verifica rosto, identidade, presença, prova de vida ou aceitação do serviço.</p></div>`:''}
           ${mediaAnnotationsPanel()}
-          <div class="callout warning media-warning"><span class="callout-icon">!</span><div>A imagem/vídeo importado permanece neste navegador e nunca é incluído no envio de teste. Ao enviar, o protótipo gera outro PNG sintético sem rosto e envia somente esse PNG e o JSON fictício ao endpoint HTTPS confirmado.</div></div>
+          <div class="callout warning media-warning"><span class="callout-icon">!</span><div>A imagem/vídeo importado permanece neste navegador e nunca é incluído na prévia JSON. O botão abaixo apenas monta localmente dados fictícios e um PNG sintético; nenhum endpoint é chamado.</div></div>
         </section>
         <p class="security-footnote">Em um produto real, o Verifica não substitui o fluxo do provedor nem interfere no vídeo usado para verificação de presença.</p>
         <div class="button-row" style="margin-top:15px">${button('Simular conclusão bem-sucedida','success','btn btn-primary')}${button('Simular falha','failure','btn btn-outline')}</div>
@@ -179,7 +252,7 @@ const views={
       <div class="button-row">${button('Concluir demonstração','success','btn btn-primary',!state.fileName||state.validating)}<button class="btn btn-outline" data-page="live">Voltar</button></div>
     </section><aside><section class="panel"><h2>Antes de enviar em produção</h2><p class="panel-lead">A autorização precisa vir do serviço de origem; uma preferência local não basta. Exija domínio verificado, integração documentada, consentimento e finalidade clara.</p><div class="divider"></div><button class="text-button" data-page="build">Revisar requisitos de segurança →</button></section></aside></div>`;
   },
-  success(){return `<section class="result-card"><div class="result-icon">✓</div><h2>Demonstração concluída</h2><p>Este protótipo mostrou o caminho seguro. Nenhuma verificação real aconteceu e nenhum dado foi transmitido.</p><div class="result-next"><strong>Em um serviço real</strong>Confirme o resultado no canal oficial. Se a verificação não aparecer como concluída, não repita o envio — contate o suporte do serviço.</div><div class="button-row" style="justify-content:center">${button('Voltar ao início','home','btn btn-primary')}${button('Rever requisitos','build','btn btn-outline')}</div></section>`;},
+  success(){return `<section class="result-card"><div class="result-icon">✓</div><h2>Demonstração concluída</h2><p>Nenhuma verificação real aconteceu. A foto da webcam permanece local e nenhuma requisição é enviada pelo protótipo.</p><div class="result-next"><strong>Em um serviço real</strong>Confirme qualquer resultado no canal oficial. Se a verificação não aparecer como concluída, não repita o envio — contate o suporte do serviço.</div><div class="button-row" style="justify-content:center">${button('Voltar ao início','home','btn btn-primary')}${button('Rever requisitos','build','btn btn-outline')}</div></section>`;},
   failure(){return `<section class="result-card"><div class="result-icon fail">!</div><h2>Não foi concluída</h2><p>Falhas podem acontecer por permissão, iluminação ou instabilidade do serviço. O Verifica não altera nem contorna o resultado do provedor.</p><div class="result-next"><strong>Próximos passos seguros</strong>1. Consulte a mensagem do serviço oficial.<br>2. Revise a permissão e as condições da câmera.<br>3. Se persistir, peça ajuda ao suporte oficial.</div><div class="button-row" style="justify-content:center">${button('Tentar novamente','permission','btn btn-primary')}${button('Abrir diagnóstico','help','btn btn-outline')}</div></section>`;},
   history(){
     const records=state.authHistory;
@@ -219,7 +292,7 @@ const views={
     const items=[
       ['⌘','Extensão de navegador','Manifest V3, popup acessível, permissões mínimas e suporte às versões atuais de Chrome, Edge e Firefox.','BASE'],
       ['◎','Integração com serviço oficial','API, SDK ou fluxo documentado pelo provedor; validar domínio e origem dos sinais de autorização.','ESSENCIAL'],
-      ['▣','Permissões e câmera','Solicitar câmera apenas no contexto oficial, após ação clara da pessoa; tratar concedida, negada e bloqueada.','ESSENCIAL'],
+      ['▣','Permissões e câmera','Solicitar a câmera real apenas no contexto oficial, após ação clara da pessoa; tratar concedida, negada e bloqueada. Não criar dispositivo de webcam virtual nem substituir o vídeo recebido por outros aplicativos.','ESSENCIAL'],
       ['⇧','Alternativas autorizadas','Exibir upload somente quando o provedor permitir explicitamente; validar tipo, tamanho, consentimento e destino.','ESSENCIAL'],
       ['◎','Opções se a câmera falhar','Orientar outro dispositivo e métodos sem câmera apenas quando o serviço oficial os oferecer; caso contrário, direcionar ao suporte oficial.','ESSENCIAL'],
       ['↺','Histórico de autenticações','Registrar somente eventos de sucesso confirmados pelo serviço, com retenção e exclusão claras. Nunca guardar senhas, tokens, imagens ou dados biométricos.','ESSENCIAL'],
@@ -227,7 +300,7 @@ const views={
       ['♿','Acessibilidade e idioma','Teclado, leitor de tela, foco visível, contraste, linguagem simples e suporte a pt-BR.','QUALIDADE'],
       ['✓','Testes e publicação','Testes em navegadores e dispositivos, revisão de segurança, termos da loja, suporte e monitoramento de falhas.','LANÇAMENTO']
     ];
-    return `<p class="docs-intro">Para transformar a demonstração em extensão, o ponto crítico é a integração oficial: o produto não pode interceptar ou falsificar a câmera, nem deduzir autorização por conta própria.</p><div class="docs-list">${items.map(i=>`<article class="docs-row"><span class="docs-icon" aria-hidden="true">${i[0]}</span><div><strong>${i[1]}</strong><p>${i[2]}</p></div><span class="docs-tag ${i[3]==='ESSENCIAL'?'must':''}">${i[3]}</span></article>`).join('')}</div>
+    return `<p class="docs-intro">Para transformar a demonstração em extensão, o ponto crítico é a integração oficial: o produto não pode interceptar ou falsificar a câmera, criar webcam virtual, nem deduzir autorização por conta própria.</p><div class="docs-list">${items.map(i=>`<article class="docs-row"><span class="docs-icon" aria-hidden="true">${i[0]}</span><div><strong>${i[1]}</strong><p>${i[2]}</p></div><span class="docs-tag ${i[3]==='ESSENCIAL'?'must':''}">${i[3]}</span></article>`).join('')}</div>
       <div class="docs-bottom"><div><strong>O que precisa estar definido antes do desenvolvimento?</strong><p>Nome do serviço de verificação, documentação de integração, política de dados e alternativas oficialmente suportadas.</p></div>${button('Voltar ao início','home','btn btn-primary btn-small')}</div>
       <p class="tiny-note">Estimativa de escopo: requer engenharia de extensão, integração/API do provedor, revisão de privacidade e testes de compatibilidade. Nenhuma integração real está conectada neste protótipo.</p>`;
   }
@@ -268,12 +341,12 @@ function mediaAnnotationsPanel(){
     <p class="media-annotations-note">O marcador “SIMULADO” é fixo. Este registro não é uma assinatura eletrônica, certificado ou comprovante válido.</p>
   </section>
   <section class="test-send-card" aria-labelledby="testSendTitle">
-    <div class="media-annotations-heading"><div><h3 id="testSendTitle">Enviar pacote de teste</h3><p>Destino editável; envio manual por HTTPS e CORS.</p></div><span class="state-chip chip-blue">JSON + PNG sintético</span></div>
-    <div class="synthetic-image-demo"><img id="syntheticTestPreview" alt="PNG sintético de teste, sem rosto ou pessoa real"><p>Imagem que poderá ser enviada: gerada no navegador, sem pessoa real.</p></div>
-    <label class="test-endpoint-label">Endpoint HTTPS sob seu controle<input id="testEndpoint" type="url" maxlength="500" placeholder="https://seu-endpoint.example/api/teste" value="${escapeHTML(state.testEndpoint)}" autocomplete="off"></label>
-    <label class="test-confirm-label"><input id="confirmTestEndpoint" type="checkbox" ${state.testEndpointConfirmed?'checked':''} ${state.testSending?'disabled':''}><span>Confirmo que controlo o endpoint e que preenchi somente dados fictícios. Sei que a imagem importada fica local e que será enviado um PNG sintético sem rosto.</span></label>
-    <div class="button-row">${button(state.testSending?'Enviando…':'Enviar teste','test-send','btn btn-primary',!state.testEndpoint.trim()||!state.testEndpointConfirmed||state.testSending)}</div>
-    <p class="test-send-status" id="testSendStatus" role="status" aria-live="polite">${escapeHTML(state.testSendStatus||'Nenhum envio será feito sem o clique neste botão. O endpoint precisa aceitar POST JSON via CORS.')}</p>
+    <div class="media-annotations-heading"><div><h3 id="testSendTitle">Prévia local do pacote de teste</h3><p>Campo editável apenas como anotação; não há conexão com endpoint.</p></div><span class="state-chip chip-blue">JSON + PNG sintético</span></div>
+    <div class="synthetic-image-demo"><img id="syntheticTestPreview" alt="PNG sintético de teste, sem rosto ou pessoa real"><p>Imagem sintética gerada no navegador para esta prévia; nunca é transmitida.</p></div>
+    <label class="test-endpoint-label">Endpoint (campo editável, sem conexão)<input id="testEndpoint" type="url" maxlength="500" placeholder="https://seu-endpoint.example/api/teste" value="${escapeHTML(state.testEndpoint)}" autocomplete="off"></label>
+    <div class="button-row">${button('Gerar prévia JSON local','test-preview','btn btn-primary')}</div>
+    <p class="test-send-status" id="testSendStatus" role="status" aria-live="polite">${state.testPayloadVisible?'Prévia criada apenas nesta tela; nenhuma requisição foi enviada.':'Nenhuma requisição de rede será feita. A URL acima não é usada pelo protótipo.'}</p>
+    ${state.testPayloadVisible?`<div class="test-payload-preview"><strong>JSON fictício — somente local</strong><pre>${escapeHTML(state.testPayloadJson)}</pre></div>`:''}
   </section>`;
 }
 function createSyntheticTestImageDataUrl(){
@@ -287,23 +360,11 @@ function createSyntheticTestImageDataUrl(){
   context.font='10px sans-serif';context.fillText('SEM PESSOA REAL',100,168);
   return canvas.toDataURL('image/png');
 }
-function validateTestEndpoint(value){
-  let endpoint;
-  try{endpoint=new URL(String(value||'').trim());}catch{return {error:'Informe uma URL HTTPS válida do seu endpoint de teste.'};}
-  if(endpoint.protocol!=='https:')return {error:'Por segurança, o endpoint precisa usar HTTPS.'};
-  if(endpoint.username||endpoint.password)return {error:'Não coloque usuário ou senha dentro do URL do endpoint.'};
-  if(endpoint.search||endpoint.hash)return {error:'Remova parâmetros e fragmentos do URL; não coloque tokens ou segredos no endereço.'};
-  const host=endpoint.hostname.toLowerCase();
-  if(host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host==='example.com'||host==='example.org'||host==='example.net'||/\.(example|test|invalid)$/.test(host))return {error:'Esse é um domínio local ou reservado para exemplo. Substitua pelo endpoint HTTPS real sob seu controle.'};
-  return {endpoint};
-}
-async function sendTestPayload(){
-  if(!state.mediaAnnotations||!state.testEndpointConfirmed||state.testSending)return;
-  const validation=validateTestEndpoint(state.testEndpoint);
-  if(validation.error){state.testSendStatus=validation.error;render();return;}
+function createTestPayloadPreview(){
+  if(!state.mediaAnnotations)return;
   let syntheticImage;
   try{syntheticImage=createSyntheticTestImageDataUrl();}
-  catch{state.testSendStatus='Não foi possível gerar a imagem sintética neste navegador.';render();return;}
+  catch{notify('Não foi possível gerar a imagem sintética neste navegador.');return;}
   const payload={
     test_only:true,
     imported_image_included:false,
@@ -311,20 +372,17 @@ async function sendTestPayload(){
     signature:{...state.signatureAnnotations,simulated:true,cryptographic_signature_created:false},
     synthetic_image:{file_name:'verifica-imagem-sintetica.png',mime_type:'image/png',synthetic:true,contains_person:false,data_url:syntheticImage}
   };
-  state.testSending=true;state.testSendStatus='Enviando apenas JSON de teste e PNG sintético…';render();
-  try{
-    const response=await fetch(validation.endpoint.href,{method:'POST',mode:'cors',credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
-    state.testSendStatus=response.ok?`Teste recebido pelo endpoint (HTTP ${response.status}). Consulte o seu servidor para ver o payload.`:`O endpoint respondeu HTTP ${response.status}. Consulte a configuração do seu endpoint.`;
-  }catch{
-    state.testSendStatus='Não foi possível confirmar a conexão. Confira a URL HTTPS, o certificado e a configuração CORS do endpoint; a resposta bruta não é exibida.';
-  }finally{state.testSending=false;render();}
+  state.testPayloadJson=JSON.stringify(payload,null,2);
+  state.testPayloadVisible=true;
+  render();
+  notify('Prévia JSON gerada localmente; nenhuma requisição foi enviada.');
 }
 function bindScreenControls(){
   const clearMediaSelection=()=>{
     state.mediaSequence+=1;
     [state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url));
     state.mediaFileName='';state.mediaFileUrl='';state.mediaPendingUrl='';state.mediaType='';state.mediaInfo=null;state.mediaAnnotations=null;state.mediaError='';state.mediaValidating=false;
-    state.signatureAnnotations={...DEMO_SIGNATURE_DEFAULTS};state.testEndpoint='';state.testEndpointConfirmed=false;state.testSending=false;state.testSendStatus='';
+    state.signatureAnnotations={...DEMO_SIGNATURE_DEFAULTS};state.testEndpoint='';state.testPayloadVisible=false;state.testPayloadJson='';
   };
   screen.querySelectorAll('[data-page]').forEach(el=>el.addEventListener('click',()=>setPage(el.dataset.page)));
   screen.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{
@@ -341,8 +399,12 @@ function bindScreenControls(){
     else if(action==='fallback') setPage('fallback');
     else if(action==='home') setPage('home');
     else if(action==='build') setPage('build');
+    else if(action==='camera-start') void startWebcam();
+    else if(action==='camera-capture') captureWebcamPhoto();
+    else if(action==='camera-stop'){state.cameraCaptureSequence+=1;state.cameraCapturing=false;stopWebcamStream();state.cameraError='';render();notify('Webcam desligada.');}
+    else if(action==='camera-clear'){state.cameraCaptureSequence+=1;clearWebcamPhoto();state.cameraAnnotations={label:'',note:''};render();notify('Foto local e anotações removidas.');}
     else if(action==='media-open') document.getElementById('mediaInput')?.click();
-    else if(action==='test-send') void sendTestPayload();
+    else if(action==='test-preview') createTestPayloadPreview();
     else if(action==='media-clear'){clearMediaSelection();render();notify('Pré-visualização local removida.');}
     else if(action==='history-clear'){state.clearHistoryConfirm=true;render();}
     else if(action==='history-clear-cancel'){state.clearHistoryConfirm=false;render();}
@@ -420,25 +482,41 @@ function bindScreenControls(){
     probe.src=validationUrl;
     notify('Validando o conteúdo localmente…');
   });
-  const updateTestSendButton=()=>{
-    const sendButton=screen.querySelector('[data-action="test-send"]');
-    if(sendButton) sendButton.disabled=state.testSending||!state.testEndpoint.trim()||!state.testEndpointConfirmed;
+  const invalidateLocalPayloadPreview=()=>{
+    state.testPayloadVisible=false;state.testPayloadJson='';
+    screen.querySelector('.test-payload-preview')?.remove();
+    const status=document.getElementById('testSendStatus');
+    if(status)status.textContent='Dados alterados; gere novamente a prévia JSON local. Nenhuma requisição será feita.';
   };
   screen.querySelectorAll('[data-annotation]').forEach(input=>input.addEventListener('input',()=>{
     if(state.mediaAnnotations) state.mediaAnnotations[input.dataset.annotation]=input.value;
-    state.testSendStatus='';updateTestSendButton();
+    invalidateLocalPayloadPreview();
   }));
   screen.querySelectorAll('[data-signature]').forEach(input=>input.addEventListener('input',()=>{
     state.signatureAnnotations[input.dataset.signature]=input.value;
-    state.testSendStatus='';updateTestSendButton();
+    invalidateLocalPayloadPreview();
   }));
   const testEndpointInput=document.getElementById('testEndpoint');
-  if(testEndpointInput) testEndpointInput.addEventListener('input',()=>{state.testEndpoint=testEndpointInput.value;state.testSendStatus='';updateTestSendButton();});
-  const confirmTestEndpoint=document.getElementById('confirmTestEndpoint');
-  if(confirmTestEndpoint) confirmTestEndpoint.addEventListener('change',()=>{state.testEndpointConfirmed=confirmTestEndpoint.checked;state.testSendStatus='';updateTestSendButton();});
-  updateTestSendButton();
+  if(testEndpointInput) testEndpointInput.addEventListener('input',()=>{state.testEndpoint=testEndpointInput.value;});
+  const webcamVideo=document.getElementById('webcamVideo');
+  if(webcamVideo&&state.cameraStream){
+    webcamVideo.srcObject=state.cameraStream;webcamVideo.muted=true;
+    webcamVideo.addEventListener('loadeddata',()=>{
+      if(!state.cameraStream||state.page!=='live') return;
+      state.cameraReady=true;
+      const captureButton=screen.querySelector('[data-action="camera-capture"]');
+      if(captureButton&&!state.cameraCapturing)captureButton.disabled=false;
+    },{once:true});
+    const playPromise=webcamVideo.play();
+    if(playPromise&&typeof playPromise.catch==='function')playPromise.catch(()=>{
+      state.cameraError='A permissão foi concedida, mas a prévia não iniciou. Tente novamente ou confira a câmera do sistema.';
+      const status=document.getElementById('webcamStatus');if(status)status.textContent=state.cameraError;
+      const captureButton=screen.querySelector('[data-action="camera-capture"]');if(captureButton)captureButton.disabled=true;
+    });
+  }
   const syntheticPreview=document.getElementById('syntheticTestPreview');
   if(syntheticPreview){try{syntheticPreview.src=createSyntheticTestImageDataUrl();}catch{syntheticPreview.alt='Imagem sintética indisponível neste navegador.';}}
+  screen.querySelectorAll('[data-camera-annotation]').forEach(input=>input.addEventListener('input',()=>{state.cameraAnnotations[input.dataset.cameraAnnotation]=input.value;}));
   const mediaInput=document.getElementById('mediaInput');
   if(mediaInput) mediaInput.addEventListener('change',event=>{
     const file=event.target.files&&event.target.files[0];
@@ -463,7 +541,7 @@ function bindScreenControls(){
     const acceptMedia=(width,height,duration=null)=>{
       if(sequence!==state.mediaSequence||state.page!=='live'){URL.revokeObjectURL(previewUrl);return;}
       if(width<1||height<1){rejectMedia('Arquivo recusado. O conteúdo não pôde ser aberto como mídia válida.');return;}
-      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaInfo={type:file.type,size:formatBytes(file.size),width,height,duration:Number.isFinite(duration)?duration:null};state.mediaAnnotations=mediaType==='image'?{fileName:'2025, 15-24-53.png',ip:'',cpf:'',latitude:'',longitude:'',mapUrl:''}:null;state.signatureAnnotations={...DEMO_SIGNATURE_DEFAULTS};state.testEndpoint='';state.testEndpointConfirmed=false;state.testSendStatus='';state.mediaError='';state.mediaValidating=false;
+      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaInfo={type:file.type,size:formatBytes(file.size),width,height,duration:Number.isFinite(duration)?duration:null};state.mediaAnnotations=mediaType==='image'?{fileName:'2025, 15-24-53.png',ip:'',cpf:'',latitude:'',longitude:'',mapUrl:''}:null;state.signatureAnnotations={...DEMO_SIGNATURE_DEFAULTS};state.testEndpoint='';state.testPayloadVisible=false;state.testPayloadJson='';state.mediaError='';state.mediaValidating=false;
       render();notify('Pré-visualização local pronta; nenhum arquivo foi enviado.');
     };
     if(mediaType==='image'){
@@ -488,4 +566,4 @@ document.addEventListener('click',event=>{
 });
 render();
 
-window.addEventListener('beforeunload',()=>[state.fileUrl,state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url)));
+window.addEventListener('beforeunload',()=>{resetWebcamState();[state.fileUrl,state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url));});
