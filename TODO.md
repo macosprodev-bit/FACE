@@ -30,6 +30,7 @@
 - [x] Adicionar à tela de verificação um botão para importar imagem e vídeo somente para pré-visualização local.
 - [x] Não enviar a mídia, ativar a câmera, autenticar ou usar o arquivo para substituir a verificação de presença/identidade.
 - [x] Validar tipo, tamanho e decodificação; permitir remover a seleção e liberar URLs temporárias ao limpar ou fechar o protótipo.
+- [x] Ao importar mídia válida, mostrar tipo, tamanho, dimensões, decodificação e status “válida para visualização”; esclarecer que isso não valida identidade, rosto ou prova de vida.
 
 ## 7. Alternativa quando a câmera não funcionar
 - [x] Oferecer um caminho separado que oriente a tentar outro dispositivo/navegador ou um método sem câmera somente se o serviço oficial o disponibilizar.

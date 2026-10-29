@@ -15,7 +15,7 @@ const DEMO_HISTORY = [
 const state = {
   page:'home', permission:'unknown', issue:'none', checks:{frame:false,light:false,privacy:false},
   altAuthorized:false, fileName:'', fileUrl:'', validating:false, uploadSequence:0,
-  mediaFileName:'', mediaFileUrl:'', mediaPendingUrl:'', mediaType:'', mediaError:'', mediaValidating:false, mediaSequence:0,
+  mediaFileName:'', mediaFileUrl:'', mediaPendingUrl:'', mediaType:'', mediaInfo:null, mediaError:'', mediaValidating:false, mediaSequence:0,
   authHistory:DEMO_HISTORY.map(entry=>({...entry})), historyQuery:'', clearHistoryConfirm:false, toastTimer:null
 };
 const screen = document.getElementById('screenRoot');
@@ -144,6 +144,7 @@ const views={
           <div class="button-row"><label class="media-picker-button"><span>Importar imagem ou vídeo</span><input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"></label>${state.mediaFileUrl||state.mediaValidating?button('Remover mídia','media-clear','btn btn-outline btn-small'):''}</div>
           <p class="media-status ${state.mediaError?'media-error':''}" id="mediaStatus" role="status" aria-live="polite">${state.mediaValidating?'Validando o arquivo localmente…':state.mediaError?escapeHTML(state.mediaError):state.mediaFileName?`Pronto para visualizar: ${escapeHTML(state.mediaFileName)}`:'JPG, PNG, WebP, MP4 ou WebM · até 25 MB.'}</p>
           ${state.mediaFileUrl&&state.mediaType==='video'?`<video class="media-preview" src="${state.mediaFileUrl}" controls playsinline preload="metadata" aria-label="Pré-visualização local do vídeo"></video>`:state.mediaFileUrl?`<img class="media-preview" src="${state.mediaFileUrl}" alt="Pré-visualização local da imagem">`:''}
+          ${state.mediaInfo?`<div class="media-validation-card"><div class="media-validation-heading"><span class="validation-mark" aria-hidden="true">✓</span><div><strong>Válida para visualização local</strong><small>Arquivo decodificado neste navegador.</small></div></div><dl class="media-meta-grid"><div><dt>Formato</dt><dd>${escapeHTML(state.mediaInfo.type)}</dd></div><div><dt>Tamanho</dt><dd>${escapeHTML(state.mediaInfo.size)}</dd></div><div><dt>Dimensões</dt><dd>${state.mediaInfo.width} × ${state.mediaInfo.height} px</dd></div>${state.mediaType==='video'?`<div><dt>Duração</dt><dd>${state.mediaInfo.duration===null?'Não disponível':`${state.mediaInfo.duration.toFixed(1)} s`}</dd></div>`:''}<div><dt>Decodificação</dt><dd>OK</dd></div></dl><p class="media-validation-note">Validação técnica local; não verifica rosto, identidade, presença, prova de vida ou aceitação do serviço.</p></div>`:''}
           <div class="callout warning media-warning"><span class="callout-icon">!</span><div>Esta mídia é apenas para visualização. Não ativa a câmera, não é enviada ao serviço e não pode substituir a verificação de presença ou identidade.</div></div>
         </section>
         <p class="security-footnote">Em um produto real, o Verifica não substitui o fluxo do provedor nem interfere no vídeo usado para verificação de presença.</p>
@@ -229,11 +230,17 @@ const views={
   }
 };
 function escapeHTML(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function formatBytes(bytes){
+  if(bytes<1024)return `${bytes} B`;
+  const units=['KB','MB'];let value=bytes/1024;let unit=0;
+  while(value>=1024&&unit<units.length-1){value/=1024;unit+=1;}
+  return `${value.toFixed(value>=10?0:1)} ${units[unit]}`;
+}
 function bindScreenControls(){
   const clearMediaSelection=()=>{
     state.mediaSequence+=1;
     [state.mediaFileUrl,state.mediaPendingUrl].filter(Boolean).forEach(url=>URL.revokeObjectURL(url));
-    state.mediaFileName='';state.mediaFileUrl='';state.mediaPendingUrl='';state.mediaType='';state.mediaError='';state.mediaValidating=false;
+    state.mediaFileName='';state.mediaFileUrl='';state.mediaPendingUrl='';state.mediaType='';state.mediaInfo=null;state.mediaError='';state.mediaValidating=false;
   };
   screen.querySelectorAll('[data-page]').forEach(el=>el.addEventListener('click',()=>setPage(el.dataset.page)));
   screen.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{
@@ -346,13 +353,13 @@ function bindScreenControls(){
       URL.revokeObjectURL(previewUrl);
       if(sequence!==state.mediaSequence)return;
       state.mediaSequence+=1;
-      state.mediaPendingUrl='';state.mediaValidating=false;state.mediaError=message;
+      state.mediaPendingUrl='';state.mediaValidating=false;state.mediaInfo=null;state.mediaError=message;
       render();notify(message);
     };
-    const acceptMedia=(width,height)=>{
+    const acceptMedia=(width,height,duration=null)=>{
       if(sequence!==state.mediaSequence||state.page!=='live'){URL.revokeObjectURL(previewUrl);return;}
       if(width<1||height<1){rejectMedia('Arquivo recusado. O conteúdo não pôde ser aberto como mídia válida.');return;}
-      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaError='';state.mediaValidating=false;
+      state.mediaPendingUrl='';state.mediaFileUrl=previewUrl;state.mediaFileName=file.name;state.mediaType=mediaType;state.mediaInfo={type:file.type,size:formatBytes(file.size),width,height,duration:Number.isFinite(duration)?duration:null};state.mediaError='';state.mediaValidating=false;
       render();notify('Pré-visualização local pronta; nenhum arquivo foi enviado.');
     };
     if(mediaType==='image'){
@@ -363,7 +370,7 @@ function bindScreenControls(){
     }else{
       const probe=document.createElement('video');
       probe.preload='metadata';
-      probe.onloadedmetadata=()=>acceptMedia(probe.videoWidth,probe.videoHeight);
+      probe.onloadedmetadata=()=>acceptMedia(probe.videoWidth,probe.videoHeight,probe.duration);
       probe.onerror=()=>rejectMedia('Arquivo recusado. O vídeo não pôde ser decodificado neste navegador.');
       probe.src=previewUrl;
       probe.load();
