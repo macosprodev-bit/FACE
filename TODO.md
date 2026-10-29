@@ -51,3 +51,15 @@
 
 ## 10. Limite de webcam virtual
 - [x] O protótipo não cria um dispositivo de webcam virtual nem substitui/intercepta o vídeo visto por outros aplicativos; oferece apenas acesso opcional à câmera real após clique explícito e captura local.
+
+## 11. Painel de controle da extensão e relatórios de teste
+- [x] Acrescentar uma página web com painel interativo para acompanhar a extensão de teste e visualizar os relatórios, com link a partir do protótipo existente.
+- [x] Exibir pacote/versionamento, instruções e downloads reais do ZIP/hash; identificar qualquer controle de ativação ou estado de instalação como simulação/anotação local, sem instalar, detectar ou alterar a extensão no Chrome.
+- [x] Mostrar resultados registrados das auditorias Playwright/axe, com data/versões, contagens reais, escolha de execução, busca/filtros e detalhes de cada estado; não alegar execução ao vivo ou certificação WCAG.
+- [x] Separar violações, inconclusivos e não testados; distinguir contagens repetidas por estado de alvos únicos. A revisão manual local não apaga resultados nem registra autenticação real.
+- [x] Oferecer checklist local de revisão humana e guias; manter dados somente em memória e permitir redefinir a autoavaliação com confirmação.
+- [x] Manter navegação responsiva, teclado, foco visível, pt-BR e estados vazios; preservar webcam/mídia do protótipo original sem acioná-las pelo painel.
+- [x] Não enviar dados pessoais, chamar endpoint, iniciar OAuth, usar webcam virtual, instalar a extensão ou executar testes no dispositivo do usuário.
+- [ ] Salvar o painel no repositório GitHub autorizado.
+
+Evidência: smoke test integrado aprovado, incluindo exportação JSON e digest do ZIP. Na checagem automática do painel, zero violações nos oito estados desktop/mobile; um alvo de contraste inconclusivo permanece para revisão humana, separado dos relatórios da extensão. Fotos importadas continuam sendo apenas prévias locais e não substituem captura oficial exigida.

@@ -1,0 +1,273 @@
+{
+  "id": "initial",
+  "label": "Primeira auditoria",
+  "timestamp": "2026-10-29T21:52:03.017218+00:00",
+  "browser": "156.0.8078.47",
+  "axeVersion": "4.14.0",
+  "extensionVersion": "0.1.0",
+  "summary": {
+    "states_tested": 12,
+    "states_not_tested": 0,
+    "violation_occurrences_by_state": 0,
+    "incomplete_occurrences_by_state": 9,
+    "keyboard_failures": 0,
+    "focus_heuristics_pending": 0,
+    "certifies_wcag": false
+  },
+  "states": [
+    {
+      "name": "preparar/concedida-simulada",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "targets": [
+            [
+              ".section-mark"
+            ],
+            [
+              "li:nth-child(1) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(2) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(3) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(4) > .check-icon[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "preparar/negada-simulada",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "targets": [
+            [
+              ".section-mark"
+            ],
+            [
+              "li:nth-child(1) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(2) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(3) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(4) > .check-icon[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "preparar/bloqueada-simulada",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "targets": [
+            [
+              ".section-mark"
+            ],
+            [
+              "li:nth-child(1) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(2) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(3) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(4) > .check-icon[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ajuda/inicial",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "ajuda/url-invalida",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "ajuda/url-formato-valido-sem-navegar",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "historico/exemplos",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "description": "Elements must only use permitted ARIA attributes",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/aria-prohibited-attr?application=axeAPI",
+          "targets": [
+            [
+              ".badge-row"
+            ],
+            [
+              "article:nth-child(1) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ],
+            [
+              "article:nth-child(2) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ],
+            [
+              "article:nth-child(3) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "historico/busca-sem-resultado",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "description": "Elements must only use permitted ARIA attributes",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/aria-prohibited-attr?application=axeAPI",
+          "targets": [
+            [
+              ".badge-row"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "historico/confirmacao",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "description": "Elements must only use permitted ARIA attributes",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/aria-prohibited-attr?application=axeAPI",
+          "targets": [
+            [
+              ".badge-row"
+            ],
+            [
+              "article:nth-child(1) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ],
+            [
+              "article:nth-child(2) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ],
+            [
+              "article:nth-child(3) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "historico/exemplos-apagados",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "description": "Elements must only use permitted ARIA attributes",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/aria-prohibited-attr?application=axeAPI",
+          "targets": [
+            [
+              ".badge-row"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "historico/exemplos-restaurados",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "description": "Elements must only use permitted ARIA attributes",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/aria-prohibited-attr?application=axeAPI",
+          "targets": [
+            [
+              ".badge-row"
+            ],
+            [
+              "article:nth-child(1) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ],
+            [
+              "article:nth-child(2) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ],
+            [
+              "article:nth-child(3) > .demo-badges[aria-label=\"Registro de demonstração\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "privacidade/inicial",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "description": "Scrollable region must have keyboard access",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=axeAPI",
+          "targets": [
+            [
+              "#appMain"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "ruleIds": [
+    "aria-prohibited-attr",
+    "color-contrast",
+    "scrollable-region-focusable"
+  ],
+  "exitCode": 0,
+  "uniqueIncompleteTargets": 10,
+  "pageErrorCount": 0,
+  "reportUrl": "/downloads/audit-initial.md",
+  "jsonUrl": "/downloads/audit-initial.json",
+  "source": "Relatório executado em perfil Chromium temporário; não é execução ao vivo."
+}

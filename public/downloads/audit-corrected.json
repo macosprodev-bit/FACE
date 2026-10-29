@@ -1,0 +1,172 @@
+{
+  "id": "corrected",
+  "label": "Após os ajustes",
+  "timestamp": "2026-10-29T21:54:23.737346+00:00",
+  "browser": "156.0.8078.47",
+  "axeVersion": "4.14.0",
+  "extensionVersion": "0.1.1",
+  "summary": {
+    "states_tested": 12,
+    "states_not_tested": 0,
+    "violation_occurrences_by_state": 0,
+    "incomplete_occurrences_by_state": 3,
+    "keyboard_failures": 0,
+    "focus_heuristics_pending": 0,
+    "certifies_wcag": false
+  },
+  "states": [
+    {
+      "name": "preparar/concedida-simulada",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "targets": [
+            [
+              ".section-mark"
+            ],
+            [
+              "li:nth-child(1) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(2) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(3) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(4) > .check-icon[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "preparar/negada-simulada",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "targets": [
+            [
+              ".section-mark"
+            ],
+            [
+              "li:nth-child(1) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(2) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(3) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(4) > .check-icon[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "preparar/bloqueada-simulada",
+      "status": "tested",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/color-contrast?application=axeAPI",
+          "targets": [
+            [
+              ".section-mark"
+            ],
+            [
+              "li:nth-child(1) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(2) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(3) > .check-icon[aria-hidden=\"true\"]"
+            ],
+            [
+              "li:nth-child(4) > .check-icon[aria-hidden=\"true\"]"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ajuda/inicial",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "ajuda/url-invalida",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "ajuda/url-formato-valido-sem-navegar",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "historico/exemplos",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "historico/busca-sem-resultado",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "historico/confirmacao",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "historico/exemplos-apagados",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "historico/exemplos-restaurados",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    },
+    {
+      "name": "privacidade/inicial",
+      "status": "tested",
+      "violations": [],
+      "incomplete": []
+    }
+  ],
+  "ruleIds": [
+    "color-contrast"
+  ],
+  "exitCode": 0,
+  "uniqueIncompleteTargets": 5,
+  "pageErrorCount": 0,
+  "reportUrl": "/downloads/audit-corrected.md",
+  "jsonUrl": "/downloads/audit-corrected.json",
+  "source": "Relatório executado em perfil Chromium temporário; não é execução ao vivo."
+}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#123b5d">
+  <meta name="description" content="Painel de evidências registradas do Verifica.">
+  <title>Verifica — Painel de evidências</title>
+  <link rel="stylesheet" href="/dashboard/panel.css">
+  <script defer src="/dashboard/data.js"></script>
+  <script defer src="/dashboard/panel.js"></script>
+</head>
+<body class="dashboard-body">
+  <div class="dashboard-shell">
+    <aside class="dashboard-sidebar" aria-label="Navegação do painel">
+      <div class="sidebar-brand-row">
+        <a class="dashboard-brand" href="/" title="Voltar ao site original">
+          <img src="/brand-mark.svg" alt="" width="40" height="40">
+          <span><strong>verifica</strong><small>painel de evidências</small></span>
+        </a>
+        <span class="sidebar-version">painel</span>
+      </div>
+      <p class="sidebar-kicker">Acompanhamento local</p>
+      <nav class="dashboard-nav" aria-label="Seções do painel">
+        <button type="button" class="dashboard-nav-button is-active" data-panel-nav="overview" aria-current="page">Visão geral</button>
+        <button type="button" class="dashboard-nav-button" data-panel-nav="extension" aria-current="false">Extensão</button>
+        <button type="button" class="dashboard-nav-button" data-panel-nav="reports" aria-current="false">Relatórios</button>
+        <button type="button" class="dashboard-nav-button" data-panel-nav="review" aria-current="false">Revisão manual</button>
+      </nav>
+      <div class="sidebar-trust">
+        <strong>Registro, não conexão</strong>
+        <p>Os resultados abaixo refletem auditorias publicadas e não uma leitura em tempo real do navegador.</p>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
+      <header class="dashboard-topbar">
+        <div class="topbar-heading">
+          <p class="eyebrow">PAINEL DE EVIDÊNCIAS</p>
+          <h1 id="panelTitle">Visão geral</h1>
+        </div>
+        <div class="topbar-controls">
+          <a class="return-link" href="/">Voltar ao site original</a>
+          <label class="run-select-label" for="runSelect">
+            <span>Execução selecionada</span>
+            <select id="runSelect" aria-label="Selecionar execução registrada"></select>
+          </label>
+        </div>
+      </header>
+
+      <div class="connection-note" role="note">
+        <span class="note-marker" aria-hidden="true"></span>
+        <p><strong>Não conectado ao Chrome.</strong> Este painel não instala nem ativa a extensão real.</p>
+      </div>
+
+      <section id="view-overview" class="panel-view" data-panel-view="overview" aria-labelledby="panelTitle"></section>
+      <section id="view-extension" class="panel-view" data-panel-view="extension" aria-labelledby="panelTitle" hidden></section>
+      <section id="view-reports" class="panel-view" data-panel-view="reports" aria-labelledby="panelTitle" hidden></section>
+      <section id="view-review" class="panel-view" data-panel-view="review" aria-labelledby="panelTitle" hidden></section>
+
+      <footer class="dashboard-footer">
+        <span>Registro histórico em <time id="registeredAt">sem data registrada</time>.</span>
+        <span>Fonte: auditorias registradas do Verifica.</span>
+        <a class="return-link" href="/downloads/validacao-painel.md" download>Validação deste painel</a>
+      </footer>
+    </main>
+  </div>
+
+  <div id="panelToast" class="panel-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog id="resetDialog" class="reset-dialog" aria-labelledby="resetDialogTitle">
+    <form method="dialog">
+      <h2 id="resetDialogTitle">Limpar autoavaliação?</h2>
+      <p>Os seis itens desta aba voltarão a ficar desmarcados. Isso não altera nenhum relatório.</p>
+      <div class="dialog-actions">
+        <button type="submit" class="button button-secondary" value="no" data-reset="no" data-reset-choice="no">Cancelar</button>
+        <button type="submit" class="button button-primary" value="yes" data-reset="yes" data-reset-choice="yes">Limpar itens</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
