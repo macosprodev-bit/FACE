@@ -1,14 +1,21 @@
-const icons = {home:'⌂', verify:'◉', help:'?', build:'⌘'};
+const icons = {home:'⌂', verify:'◉', history:'↺', help:'?', build:'⌘'};
 const navItems = [
   {id:'home',label:'Início'},
   {id:'verify',label:'Verificação'},
+  {id:'history',label:'Histórico'},
   {id:'help',label:'Ajuda'},
   {id:'build',label:'Construir'}
 ];
-const titles = {home:'Início',verify:'Verificação',permission:'Permissões',prepare:'Preparação',live:'Verificação oficial',alternate:'Alternativa autorizada',success:'Tudo certo',failure:'Não foi concluída',help:'Ajuda com a câmera',build:'Para construir de verdade'};
+const titles = {home:'Início',verify:'Verificação',history:'Histórico',permission:'Permissões',prepare:'Preparação',live:'Verificação oficial',alternate:'Alternativa autorizada',success:'Tudo certo',failure:'Não foi concluída',help:'Ajuda com a câmera',build:'Para construir de verdade'};
+const DEMO_HISTORY = [
+  {id:'demo-1',service:'Portal Aurora',domain:'conta.aurora.example',time:'29 out 2026 · 09:41',method:'Verificação oficial por câmera'},
+  {id:'demo-2',service:'Conta Horizonte',domain:'login.horizonte.example',time:'28 out 2026 · 18:23',method:'Chave de acesso (passkey)'},
+  {id:'demo-3',service:'Serviço Alameda',domain:'secure.alameda.example',time:'26 out 2026 · 12:06',method:'Alternativa autorizada pelo serviço'}
+];
 const state = {
   page:'home', permission:'unknown', issue:'none', checks:{frame:false,light:false,privacy:false},
-  altAuthorized:false, fileName:'', fileUrl:'', validating:false, uploadSequence:0, toastTimer:null
+  altAuthorized:false, fileName:'', fileUrl:'', validating:false, uploadSequence:0,
+  authHistory:DEMO_HISTORY.map(entry=>({...entry})), historyQuery:'', clearHistoryConfirm:false, toastTimer:null
 };
 const screen = document.getElementById('screenRoot');
 const pageTitle = document.getElementById('pageTitle');
@@ -37,7 +44,7 @@ function render(){
   document.querySelector('#sideNav').innerHTML=navMarkup('side-nav');
   document.querySelector('#bottomNav').innerHTML=navMarkup('bottom-nav');
   pageTitle.textContent=titles[state.page]||'Verifica';
-  eyebrow.textContent=state.page==='build'?'NOTAS DE IMPLEMENTAÇÃO':'ASSISTENTE DE VERIFICAÇÃO';
+  eyebrow.textContent=state.page==='build'?'NOTAS DE IMPLEMENTAÇÃO':state.page==='history'?'REGISTROS DE DEMONSTRAÇÃO':'ASSISTENTE DE VERIFICAÇÃO';
   screen.innerHTML=views[state.page]();
   bindScreenControls();
 }
@@ -149,6 +156,23 @@ const views={
   },
   success(){return `<section class="result-card"><div class="result-icon">✓</div><h2>Demonstração concluída</h2><p>Este protótipo mostrou o caminho seguro. Nenhuma verificação real aconteceu e nenhum dado foi transmitido.</p><div class="result-next"><strong>Em um serviço real</strong>Confirme o resultado no canal oficial. Se a verificação não aparecer como concluída, não repita o envio — contate o suporte do serviço.</div><div class="button-row" style="justify-content:center">${button('Voltar ao início','home','btn btn-primary')}${button('Rever requisitos','build','btn btn-outline')}</div></section>`;},
   failure(){return `<section class="result-card"><div class="result-icon fail">!</div><h2>Não foi concluída</h2><p>Falhas podem acontecer por permissão, iluminação ou instabilidade do serviço. O Verifica não altera nem contorna o resultado do provedor.</p><div class="result-next"><strong>Próximos passos seguros</strong>1. Consulte a mensagem do serviço oficial.<br>2. Revise a permissão e as condições da câmera.<br>3. Se persistir, peça ajuda ao suporte oficial.</div><div class="button-row" style="justify-content:center">${button('Tentar novamente','permission','btn btn-primary')}${button('Abrir diagnóstico','help','btn btn-outline')}</div></section>`;},
+  history(){
+    const records=state.authHistory;
+    return `<section class="panel history-panel">
+      <div class="history-intro"><div><span class="state-chip chip-green">${records.length} ${records.length===1?'registro':'registros'} de exemplo</span><h2>Autenticações bem-sucedidas</h2><p>Um resumo demonstrativo de acessos confirmados no serviço de origem.</p></div><span class="history-mark" aria-hidden="true">✓</span></div>
+      <div class="callout info history-privacy"><span class="callout-icon">i</span><div><strong>Somente dados fictícios.</strong> Esta tela não registra autenticações reais nem armazena senhas, tokens, imagens ou dados biométricos. Os exemplos existem apenas nesta sessão.</div></div>
+      <div class="history-tools"><label class="history-search"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar no histórico</span><input id="historySearch" type="search" placeholder="Buscar serviço, domínio ou método" value="${escapeHTML(state.historyQuery)}"></label>
+        ${records.length?button('Limpar exemplos','history-clear','btn btn-outline btn-small'):button('Restaurar exemplos','history-restore','btn btn-secondary btn-small')}
+      </div>
+      ${state.clearHistoryConfirm?`<div class="history-confirm"><div><strong>Limpar os registros fictícios?</strong><p>Isso afeta apenas os exemplos desta demonstração.</p></div><div class="button-row">${button('Limpar agora','history-clear-confirm','btn btn-primary btn-small')}${button('Cancelar','history-clear-cancel','btn btn-outline btn-small')}</div></div>`:''}
+      <div class="history-list" id="historyList">${records.map(entry=>`<article class="history-row" data-search="${escapeHTML(`${entry.service} ${entry.domain} ${entry.method}`.toLocaleLowerCase('pt-BR'))}">
+        <span class="history-success" aria-hidden="true">✓</span><div class="history-details"><div class="history-service"><strong>${escapeHTML(entry.service)}</strong><span class="state-chip chip-green">Sucesso</span></div><span class="history-domain">${escapeHTML(entry.domain)}</span><div class="history-meta"><span>${escapeHTML(entry.time)}</span><span class="history-separator">·</span><span>${escapeHTML(entry.method)}</span></div></div>
+      </article>`).join('')}</div>
+      <div class="history-empty ${records.length?'hidden':''}" id="historyEmpty"><strong>Histórico de exemplo vazio</strong><p>Nenhuma autenticação real foi registrada.</p></div>
+      <div class="history-empty hidden" id="historyNoResults"><strong>Nenhum resultado</strong><p>Tente buscar por outro serviço, domínio ou método.</p></div>
+      <p class="tiny-note">As autenticações reais devem ser consultadas e gerenciadas no serviço que as realizou.</p>
+    </section>`;
+  },
   help(){
     const issues=[
       {id:'permission',icon:'▣',title:'Sem permissão',desc:'O navegador bloqueou o acesso.'},
@@ -171,6 +195,7 @@ const views={
       ['◎','Integração com serviço oficial','API, SDK ou fluxo documentado pelo provedor; validar domínio e origem dos sinais de autorização.','ESSENCIAL'],
       ['▣','Permissões e câmera','Solicitar câmera apenas no contexto oficial, após ação clara da pessoa; tratar concedida, negada e bloqueada.','ESSENCIAL'],
       ['⇧','Alternativas autorizadas','Exibir upload somente quando o provedor permitir explicitamente; validar tipo, tamanho, consentimento e destino.','ESSENCIAL'],
+      ['↺','Histórico de autenticações','Registrar somente eventos de sucesso confirmados pelo serviço, com retenção e exclusão claras. Nunca guardar senhas, tokens, imagens ou dados biométricos.','ESSENCIAL'],
       ['◇','Privacidade e segurança','Minimização de dados, transmissão criptografada, retenção definida, proteção contra exposição e política de privacidade.','ESSENCIAL'],
       ['♿','Acessibilidade e idioma','Teclado, leitor de tela, foco visível, contraste, linguagem simples e suporte a pt-BR.','QUALIDADE'],
       ['✓','Testes e publicação','Testes em navegadores e dispositivos, revisão de segurança, termos da loja, suporte e monitoramento de falhas.','LANÇAMENTO']
@@ -196,6 +221,10 @@ function bindScreenControls(){
     else if(action==='help') setPage('help');
     else if(action==='home') setPage('home');
     else if(action==='build') setPage('build');
+    else if(action==='history-clear'){state.clearHistoryConfirm=true;render();}
+    else if(action==='history-clear-cancel'){state.clearHistoryConfirm=false;render();}
+    else if(action==='history-clear-confirm'){state.authHistory=[];state.historyQuery='';state.clearHistoryConfirm=false;render();notify('Os registros de exemplo foram removidos.');}
+    else if(action==='history-restore'){state.authHistory=DEMO_HISTORY.map(entry=>({...entry}));state.historyQuery='';state.clearHistoryConfirm=false;render();notify('Registros fictícios restaurados.');}
   }));
   screen.querySelectorAll('input[name="perm"]').forEach(input=>input.addEventListener('change',()=>{
     state.permission=input.value;
@@ -208,6 +237,19 @@ function bindScreenControls(){
     state.checks[input.dataset.check]=input.checked;render();
   }));
   screen.querySelectorAll('[data-issue]').forEach(el=>el.addEventListener('click',()=>{state.issue=el.dataset.issue;render();}));
+  const historySearch=document.getElementById('historySearch');
+  if(historySearch) historySearch.addEventListener('input',()=>{
+    state.historyQuery=historySearch.value;
+    const query=state.historyQuery.trim().toLocaleLowerCase('pt-BR');
+    let visible=0;
+    screen.querySelectorAll('.history-row').forEach(row=>{
+      const matches=row.dataset.search.includes(query);
+      row.classList.toggle('hidden',!matches);
+      if(matches) visible+=1;
+    });
+    const noResults=document.getElementById('historyNoResults');
+    if(noResults) noResults.classList.toggle('hidden',visible>0||state.authHistory.length===0);
+  });
   const discardSelection=()=>{
     state.uploadSequence+=1;
     if(state.fileUrl) URL.revokeObjectURL(state.fileUrl);

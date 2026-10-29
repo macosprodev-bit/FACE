@@ -15,6 +15,13 @@
 - [x] O fluxo alternativo demonstra seleção e prévia local de imagem, com avisos de origem, consentimento e segurança; não envia arquivo.
 - [x] Estados de conclusão, falha e tentativa novamente apresentam próximos passos seguros e suporte do serviço oficial.
 
-## 4. Navegação e documentação de implementação
+## 4. Histórico de autenticações bem-sucedidas
+- [x] Adicionar uma tela para gerenciar o histórico de autenticações bem-sucedidas.
+- [x] Permitir busca por serviço, domínio ou método, confirmação antes de limpar os exemplos e restauração dos registros demonstrativos.
+- [x] Usar apenas eventos e domínios fictícios, sem autenticações reais ou armazenamento de senhas, tokens, imagens ou dados biométricos; os dados existem apenas na sessão do protótipo.
+- [x] Mostrar estado vazio após a limpeza e manter explícito que autenticações reais são gerenciadas no serviço de origem.
+
+## 5. Navegação, responsividade e requisitos de implementação
 - [x] Navegação clicável entre as telas principais, responsiva ao formato compacto de extensão e a dispositivos menores.
-- [x] A documentação lista requisitos técnicos, permissões, integrações, privacidade, segurança, acessibilidade, testes e publicação para construir a extensão real.
+- [x] Abrir o protótipo em tela cheia e testar navegação, busca, confirmação de limpeza, estado vazio e restauração dos exemplos.
+- [x] A documentação lista requisitos técnicos, permissões, integrações, privacidade, segurança, acessibilidade, testes, publicação e minimização dos dados de histórico para construir a extensão real.
